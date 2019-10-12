@@ -10,9 +10,6 @@
   "Shadow-cljs sets this up to be our entry-point function. See shadow-cljs.edn `:init-fn` in the modules of the main build."
   []
   (app/mount! app ui/Root "app")
-  (df/load! app :friends ui/PersonList)
-  (df/load! app :enemies ui/PersonList)
-  ;;(df/load! app [:person/id 3] ui/Person {:target (targeting/append-to [:list/id :friends :list/people])})
   (js/console.log "Loaded"))
 
 (defn ^:export refresh
