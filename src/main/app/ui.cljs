@@ -7,6 +7,54 @@
    [app.mutations :as api]
    ))
 
+;; start from nothing
+;; clicker
+;; click the single button
+;; and augs could be added to a different element
+;; or new things could appear
+;; 
+
+;; okay so
+;; rooms consist of a wormhole that can be open to one other place
+;; hovering or clicking on a wormhole shows the neighboring rooms
+;; when your wormhole is open, clicking on a different room connects the two rooms
+;;   and opens a new browser tab
+;; when that browser tab closes, the wormhole connection breaks
+
+;; a single room may only have one wormhole open to another room
+;; to close the wormhole, you need to close the other browser tab
+
+;; items can live in a room
+;; items can be clicked and dragged into a wormhole (and they go through the wormhole)
+;;
+;; first level
+;; you only have two things:
+;; one wormhole mouth
+;; one keycard slot
+;; 
+
+;; wormhole states
+#{:wormhole.state/active
+  :wormhole.state/opened
+  :wormhole.state/deactive}
+
+(defn room-ident [id]
+  [:room/by-id id])
+
+;; domain modelling
+{:room/id :room.id/starting
+ :room/items [{:item/id 1}
+              {:item/id 1}]
+ :wormhole/state :wormhole.state/active
+ :wormhole/connected :room.id/two}
+
+(defn item-ident [id]
+  [:item/by-id id])
+
+{:item/id 1
+ :item/type :item.type/keycard
+ :item/color :red
+ :item/room :room.id/starting}
 
 (defsc Person [this
                {:person/keys [id name age] :as props}
