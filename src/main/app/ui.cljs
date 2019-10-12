@@ -7,17 +7,44 @@
    [app.mutations :as api]
    ))
 
+
 (defsc Person [this
                {:person/keys [id name age] :as props}
                {:keys [onDelete]}
                {:keys [red]}]
   {:query [:person/id :person/name :person/age]
    :ident (fn [] [:person/id (:person/id props)])
-   :css [[:.red {:color "blue"
-                 :font-size "1.2em"}]]}
+   :css [[:.red {:color "green"
+
+                 :font-size "2.2em"
+                 :--aug-border "2px"
+                 :--aug-inset "2px"
+                 :--aug-border-bg "linear-gradient(red, transparent), linear-gradient(to right, blue, transparent), black"
+                 ;; background between border and center
+                 :background "green"
+                 :--aug-border-opacity 0.8
+                 :--aug-inset-bg "gold"
+                 :--aug-inset-opacity 1
+                 :--aug-r "25px"
+                 :--aug-tl "35px"
+                 :--aug-b-width "30%"
+                 :--aug-b-height "20%"
+                 :--aug-bl-height "3px"
+                 :--aug-bl-width "30%"
+                 ;; sets the origin from left to right
+                 :--aug-t-origin-x "10%"
+                 ;; sets the size of the aug
+                 :--aug-t "30px"
+                 :--aug-t-width "30px"
+
+
+                 }]]}
+  
   (dom/li
    (dom/div
-    (dom/h5 {:classes [red]} (str name " (age: " age ")")))
+    (dom/h5 {:classes [red]
+             :augmented-ui "r-clip bl-clip-x tl-round t-clip br-clip b-rect exe"}
+            (str name " (age: " age ")")))
    (dom/button {:onClick #(onDelete id)} "X")))
 
 (def ui-person (comp/factory Person {:keyfn :person/name}))
