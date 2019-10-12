@@ -2,13 +2,22 @@
   (:require
    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
    [com.fulcrologic.fulcro.dom :as dom]
-   [app.mutations :as api]))
+   [com.fulcrologic.fulcro-css.css :as css]
+   [com.fulcrologic.fulcro-css.css-injection :as inj]
+   [app.mutations :as api]
+   ))
 
-(defsc Person [this {:person/keys [id name age] :as props} {:keys [onDelete]}]
+(defsc Person [this
+               {:person/keys [id name age] :as props}
+               {:keys [onDelete]}
+               {:keys [red]}]
   {:query [:person/id :person/name :person/age]
-   :ident (fn [] [:person/id (:person/id props)])}
+   :ident (fn [] [:person/id (:person/id props)])
+   :css [[:.red {:color "blue"
+                 :font-size "1.2em"}]]}
   (dom/li
-   (dom/h5 (str name " (age: " age ")"))
+   (dom/div
+    (dom/h5 {:classes [red]} (str name " (age: " age ")")))
    (dom/button {:onClick #(onDelete id)} "X")))
 
 (def ui-person (comp/factory Person {:keyfn :person/name}))
@@ -28,6 +37,7 @@
            {:enemies (comp/get-query PersonList)}]
    :initial-state {}}
   (dom/div
+   (inj/style-element {:component Root})
    (dom/h3 "Friends")
    (when friends
      (ui-person-list friends))
