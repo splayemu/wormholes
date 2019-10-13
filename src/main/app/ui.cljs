@@ -33,121 +33,127 @@
 ;; one keycard slot
 ;; 
 
-;; wormhole states
-#{:wormhole.state/active
-  :wormhole.state/opened
-  :wormhole.state/deactive}
 
-(defn room-ident [id]
-  [:room/by-id id])
 
-;; domain modelling
-{:room/id :room.id/starting
- :room/items [{:item/id 1}
-              {:item/id 1}]
- :wormhole/state :wormhole.state/active
- :wormhole/connected :room.id/two}
-
-(defn item-ident [id]
-  [:item/by-id id])
 
 {:item/id 1
  :item/type :item.type/keycard
  :item/color :red
  :item/room :room.id/starting}
 
+(def item-css [[:.keycard
+                {:width "10px"
+                 :height "10px"
+                 :color "red"
+                 :--aug-border "1px"
+                 :--aug-inset "1px"
+                 :--aug-border-opacity 1
+                 :--aug-inset-bg "red"
+                 :--aug-inset-opacity 1
+                 :--aug-border-bg "red"}]])
+
+(defsc Item [this
+             {:keys [item/id item/type item/color] :as props}
+             computed
+             {:keys [keycard] :as css}]
+  {:query [:item/id :item/type :item/color]
+   :initial-state (fn [item] item)
+   :ident (fn [] (api/item-ident id))
+   ;; not sure why this css isn't loading
+   :css item-css}
+  (let [item-type->classes {:item.type/keycard [keycard]}]
+    (dom/div {:classes [keycard]
+              :augmented-ui "br-round tl-round exe"}
+             id)))
+
+(def ui-item (comp/factory Item {:keyfn :item/id}))
+
+;; wormhole.statuss
+#{:wormhole.status/active
+  :wormhole.status/opened
+  :wormhole.status/deactive}
+
+(def starting-room
+  {:room/id :room.id/starting
+   :room/items []
+   :wormhole/status :wormhole.status/deactive
+   :wormhole/connected nil})
+
+(def down-room
+  {:room/id :room.id/down
+   :room/items [{:item/id 1}]
+   :wormhole/status :wormhole.status/deactive
+   :wormhole/connected nil})
+
 (defsc Room [this
-             {:keys [room/id room/items wormhole/state wormhole/connected]
+             {:keys [room/id room/items wormhole/status wormhole/connected]
               :as props}
              {:as computed}
-             {:keys [shape]
+             {:keys [basic-style wormhole-opened]
               :as css}]
   {:query [:room/id
            :room/items
-           :wormhole/state
+           :wormhole/status
            :wormhole/connected]
-   :initial-state (fn [_] {:room/id :room.id/starting
-                           :room/items [{:item/id 1}
-                                        {:item/id 1}]
-                           :wormhole/state :wormhole.state/active
-                           :wormhole/connected :room.id/two})
-   :ident (fn [] (item-ident id))
-   :css [[:.shape {:color "green"
-
-                 :font-size "2.2em"
-                 :--aug-border "2px"
-                 :--aug-inset "2px"
-                 :--aug-border-bg "linear-gradient(red, transparent), linear-gradient(to right, blue, transparent), black"
-                 ;; background between border and center
-                 :background "green"
-                 :--aug-border-opacity 0.8
-                 :--aug-inset-bg "gold"
-                 :--aug-inset-opacity 1
-                 :--aug-r "25px"
-                 :--aug-tl "35px"
-                 :--aug-b-width "30%"
-                 :--aug-b-height "20%"
-                 :--aug-bl-height "3px"
-                 :--aug-bl-width "30%"
-                 ;; sets the origin from left to right
-                 :--aug-t-origin-x "10%"
-                 ;; sets the size of the aug
-                 :--aug-t "30px"
-                 :--aug-t-width "30px"
-
-
-                 }]]}
-  (dom/div {:classes [shape]
-            :augmented-ui "r-clip bl-clip-x tl-round t-clip br-clip b-rect exe"}
-   (str "I am a room" props)))
+   :initial-state (fn [id] (if (= id :room.id/starting)
+                             starting-room
+                             down-room))
+   :ident (fn [] (api/room-ident id))
+   :css [[:.basic-style
+          {:color "black"
+           :width "50%"
+           :height "50%"
+           :top "25%"
+           :left "25%"
+           :padding "12px"
+           :font-size "2.2em"
+           :--aug-border "6px"
+           :--aug-border-bg "white"
+           :--aug-inset "6px"
+           :--aug-border-opacity 0.8
+           :--aug-inset-bg "white"
+           :--aug-inset-opacity 0.8
+           :--aug-tl "15px"
+           :--aug-br "15px"}]
+         [:.wormhole-opened
+          {:--aug-border-bg "linear-gradient(red, transparent), linear-gradient(to right, blue, transparent), black"}]]}
+  (let [wormhole-class (if (= status :wormhole.status/active)
+                         wormhole-opened
+                         nil)
+        on-wormhole-click #(comp/transact! this `[(api/click-wormhole {:room/id ~id})])]
+    (dom/div {:classes [basic-style wormhole-class]
+              :augmented-ui "br-round tl-round exe"}
+             (dom/div (str "I am room " id))
+             (dom/div {:onClick on-wormhole-click}
+                      (str "I am a wormhole " status))
+             (when items
+               (dom/div :.items
+                       (dom/ul
+                        (map (fn [item] (ui-item item)) items)))))))
 
 (def ui-room (comp/factory Room {:keyfn :room/id}))
 
-(defsc Root [this {:keys [room]}]
-  {:query [{:room (comp/get-query Room)}]
-   :initial-state (fn [params] {:room (comp/get-initial-state Room)})}
-  (dom/div
+(defsc Root [this
+             {:keys [starting/room neighbor/down]}
+             computed
+             ;;{:keys [space]}
+             ]
+  {:query [{:starting/room (comp/get-query Room)}
+           {:neighbor/up (comp/get-query Room)}
+           {:neighbor/left (comp/get-query Room)}
+           {:neighbor/right (comp/get-query Room)}
+           {:neighbor/down (comp/get-query Room)}]
+   :initial-state (fn [params] {:starting/room (comp/get-initial-state Room :room.id/starting)
+                                :neighbor/down (comp/get-initial-state Room :room.id/down)})
+   ;;:css [[:.space {:background "black"}]]
+   }
+  (dom/div 
    (inj/style-element {:component Root})
-   (ui-room room)))
-
-(defsc Person [this
-               {:person/keys [id name age] :as props}
-               {:keys [onDelete]}
-               {:keys [red]}]
-  {:query [:person/id :person/name :person/age]
-   :ident (fn [] [:person/id (:person/id props)])
-   :css [[:.red {:color "green"
-
-                 :font-size "2.2em"
-                 :--aug-border "2px"
-                 :--aug-inset "2px"
-                 :--aug-border-bg "linear-gradient(red, transparent), linear-gradient(to right, blue, transparent), black"
-                 ;; background between border and center
-                 :background "green"
-                 :--aug-border-opacity 0.8
-                 :--aug-inset-bg "gold"
-                 :--aug-inset-opacity 1
-                 :--aug-r "25px"
-                 :--aug-tl "35px"
-                 :--aug-b-width "30%"
-                 :--aug-b-height "20%"
-                 :--aug-bl-height "3px"
-                 :--aug-bl-width "30%"
-                 ;; sets the origin from left to right
-                 :--aug-t-origin-x "10%"
-                 ;; sets the size of the aug
-                 :--aug-t "30px"
-                 :--aug-t-width "30px"
+   (ui-room room)
+   (ui-room down)))
 
 
-                 }]]}
-  
-  (dom/li
-   (dom/div
-    (dom/h5 {:classes [red]
-             :augmented-ui "r-clip bl-clip-x tl-round t-clip br-clip b-rect exe"}
-            (str name " (age: " age ")")))
-   (dom/button {:onClick #(onDelete id)} "X")))
+
 
 #_(def ui-person (comp/factory Person {:keyfn :person/name}))
 
