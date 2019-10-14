@@ -11,4 +11,6 @@
                                binaryage/devtools          {:mvn/version "0.9.10"}
                                org.clojure/tools.namespace {:mvn/version "0.2.11"}
                                com.fulcrologic/fulcro-garden-css {:mvn/version "3.0.7"}
+                               com.fulcrologic/fulcro-websockets {:mvn/version "3.0.4"}
+                               com.taoensso/sente                {:mvn/version "1.14.0-RC2"}
                                }}}}

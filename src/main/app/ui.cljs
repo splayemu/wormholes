@@ -5,6 +5,7 @@
    [com.fulcrologic.fulcro-css.css :as css]
    [com.fulcrologic.fulcro-css.css-injection :as inj]
    [app.mutations :as api]
+   [app.util :refer-macros [inspect]]
    ))
 
 ;; start from nothing
@@ -95,9 +96,6 @@
            :room/items
            :wormhole/status
            :wormhole/connected]
-   :initial-state (fn [id] (if (= id :room.id/starting)
-                             starting-room
-                             down-room))
    :ident (fn [] (api/room-ident id))
    :css [[:.basic-style
           {:color "black"
@@ -123,34 +121,31 @@
         on-wormhole-click #(comp/transact! this `[(api/click-wormhole {:room/id ~id})])]
     (dom/div {:classes [basic-style wormhole-class]
               :augmented-ui "br-round tl-round exe"}
-             (dom/div (str "I am room " id))
-             (dom/div {:onClick on-wormhole-click}
-                      (str "I am a wormhole " status))
-             (when items
-               (dom/div :.items
-                       (dom/ul
-                        (map (fn [item] (ui-item item)) items)))))))
+      (dom/div (str "I am room " id))
+      (dom/div {:onClick on-wormhole-click}
+        (str "I am a wormhole " status))
+      (when items
+        (dom/div :.items
+          (dom/ul
+            (map (fn [item] (ui-item item)) items)))))))
 
 (def ui-room (comp/factory Room {:keyfn :room/id}))
 
+;; how do we query the map of neighbors?
 (defsc Root [this
-             {:keys [starting/room neighbor/down]}
+             {:keys [starting-state]}
              computed
              ;;{:keys [space]}
              ]
-  {:query [{:starting/room (comp/get-query Room)}
-           {:neighbor/up (comp/get-query Room)}
-           {:neighbor/left (comp/get-query Room)}
-           {:neighbor/right (comp/get-query Room)}
-           {:neighbor/down (comp/get-query Room)}]
-   :initial-state (fn [params] {:starting/room (comp/get-initial-state Room :room.id/starting)
-                                :neighbor/down (comp/get-initial-state Room :room.id/down)})
+  {:query [{:starting-state (comp/get-query Room)}
+           ;;{:neighbors {:starting-state (comp/get-query Room)}}
+           ]
    ;;:css [[:.space {:background "black"}]]
    }
   (dom/div 
    (inj/style-element {:component Root})
-   (ui-room room)
-   (ui-room down)))
+   (ui-room (inspect starting-state))
+   #_(ui-room down)))
 
 
 

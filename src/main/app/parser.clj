@@ -30,6 +30,10 @@
 
   (api-parser [:friends ])
 
+  (api-parser [{:starting-state [:room/id :room/items :room/neighbors :wormhole/status :wormhole/connected]}])
+  
+  (api-parser [:starting-room :starting-user])
+
 
   )
 

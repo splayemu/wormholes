@@ -1,7 +1,91 @@
 (ns app.resolvers
   (:require
+   [app.util :refer [inspect]]
    [com.wsscode.pathom.core :as p]
    [com.wsscode.pathom.connect :as pc]))
+
+;; starting state
+;; wormhole.statuss
+#{:wormhole.status/active
+  :wormhole.status/opened
+  :wormhole.status/deactive}
+
+(def starting-room
+  {:room/id :room.id/starting
+   :room/items []
+   :room/neighbors {:down :room.id/down}
+   :wormhole/status :wormhole.status/deactive
+   :wormhole/connected nil})
+
+(def down-room
+  {:room/id :room.id/down
+   :room/items [{:item/id 1}]
+   :room/neighbors {:up :room.id/starting}
+   :wormhole/status :wormhole.status/deactive
+   :wormhole/connected nil})
+
+;; we will have a starting state
+;; we will have in memory atoms based on the user id
+
+;; user
+{:user/id :uuid
+ :user/cookie :cookie
+ :user/last-message-at :at}
+;; when a new user joins, we copy the starting state into user state
+;; we will keep a timestamp of when the last connection came in from a user and clean up user state that's past that
+
+(defonce user-table
+  (atom {}))
+
+(defn now [] (new java.util.Date))
+
+(defn add-user [id]
+  (swap! user-table assoc id {:user/id id
+                              :user/last-message-at (now)}))
+
+;; room table by user
+{:user-id {}}
+
+(defonce room-table
+  (let [room-table* (atom {})]
+    (add-room :base-state starting-room)
+    (add-room :base-state down-room)
+    room-table*))
+
+(defn add-room [user-id room]
+  (swap! room-table assoc-in [user-id (:room/id room)] room))
+
+(comment
+  @room-table
+
+  ;; starting state
+  (add-room :base-state starting-room)
+  (add-room :base-state down-room)
+
+  )
+
+;; the goal is to move the initial state to the sever
+;; we will create a new user on each load
+;; it will insert the starting state into the room table
+;; it will insert a user into the user table
+;; it will return data to the frontend and render the page
+
+;; also how does a 2d room map look like?
+;; r | r | r
+;; r | r | r
+;; r | r | r
+
+;; we can store a grid that indexes into an individual room
+;; and/or we can store pointers to the neighbors in each room
+
+(pc/defresolver room-resolver [env {room-id :room/id user-id :user/id}]
+  {::pc/input #{:room/id :user/id}
+   ::pc/output [:room/id
+                :room/items
+                {:room/neighbors [:room/id]}
+                :wormhole/status
+                :wormhole/connected]}
+  (get-in @room-table [user-id room-id]))
 
 (def people-table
   (atom
@@ -31,6 +115,21 @@
     (assoc list
            :list/people (mapv (fn [id] {:person/id id}) (:list/people list)))))
 
+#_(pc/defresolver neighbor-resolver [env {:keys [room/id]}]
+  {::pc/input #{:room/id}
+   ::pc/output [{:neighbors [:room/id]}]}
+  )
+
+(pc/defresolver initial-state-resolver [env input]
+  {::pc/output [{:starting-state [:room/id
+                                  :user/id
+                                  ;;{:neighbors [:room/id :room/neighbors]}
+                                  ]}]}
+  {:starting-state {:room/id :room.id/starting
+                    :user/id :base-state
+                    ;;:neighbors [{:room/id :room.id/starting}]
+                    }})
+
 (pc/defresolver friends-resolver [env input]
   {::pc/output [{:friends [:list/id]}]}
   {:friends {:list/id :friends}})
@@ -39,5 +138,7 @@
   {::pc/output [{:enemies [:list/id]}]}
   {:enemies {:list/id :enemies}})
 
-(def resolvers [person-resolver list-resolver friends-resolver enemies-resolver])
+(def resolvers
+  [room-resolver
+   initial-state-resolver])
 
