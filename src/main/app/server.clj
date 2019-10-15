@@ -20,9 +20,10 @@
      :body "Not Found"}))
 
 (defn cookie []
-  {:value     (str (java.util.UUID/randomUUID))
-   :max-age   (str (* 60 60))
-   :http-only true})
+  {:value (str (java.util.UUID/randomUUID))
+   ;;:max-age   (str (* 60 60))
+   ;;:http-only true
+   })
 
 ;; for cookieless people,
 ;; create a new uesr and cookie
@@ -33,12 +34,27 @@
   (fn [req]
     (def treq req)
     (util/log "cookies req" (:cookies req))
-    (let [resp (handler req)]
+    (let [resp (handler req)
+          resp (update resp :cookies merge {"user_id" (cookie)})
+          ]
+      
       (def tresp resp)
-      (util/log "cookies resp" (:cookies resp))
+      (util/log "cookies resp" resp)
+      resp)))
+
+(defn log-middleware [handler]
+  (fn [req]
+    (def tlogreq req)
+    ;;(util/log "cookies req" req)
+    (let [resp (handler req)]
+      (def tlogresp resp)
+      (util/log "resp" resp)
       resp)))
 
 (defonce stop-fn (atom nil))
+
+;; might need to setup a separate endpoint in order to return a cookie
+;; or perhaps set it on the client?
 
 (defn start []
   (util/log "starting server")
@@ -49,13 +65,16 @@
                                  ))
         middleware (-> not-found-handler
                      (fws/wrap-api websockets)
+                     log-middleware
+                     user-middleware
+                     wrap-cookies
                      wrap-keyword-params
                      wrap-params
-                     ;;user-middleware
-                     wrap-cookies
+                     log-middleware
                      (wrap-resource "public")
                      wrap-content-type
-                     wrap-not-modified)
+                     wrap-not-modified
+                     )
         server (http/run-server middleware {:port 3000})]
     (reset! stop-fn
       (fn []
