@@ -39,24 +39,48 @@
 
 (defn now [] (new java.util.Date))
 
-(defn add-user [id]
-  (swap! user-table assoc id {:user/id id
-                              :user/last-message-at (now)}))
+(defn add-room [room-table user-id room]
+  (assoc-in room-table [user-id (:room/id room)] room))
 
-;; room table by user
-{:user-id {}}
+(def initial-room-table
+  (-> {}
+    (add-room :base-state starting-room)
+    (add-room :base-state down-room)))
 
 (defonce room-table
-  (let [room-table* (atom {})]
-    (add-room :base-state starting-room)
-    (add-room :base-state down-room)
-    room-table*))
+  (atom initial-room-table))
 
-(defn add-room [user-id room]
-  (swap! room-table assoc-in [user-id (:room/id room)] room))
+(defn add-room! [user-id room]
+  (swap! room-table add-room user-id room))
+
+(defn add-user!
+  "Add the user and create initial state."
+  [id]
+  (let [user {:user/id id
+              :user/last-message-at (now)}]
+    (swap! user-table assoc id user)
+    (add-room! id starting-room)
+    (add-room! id down-room)
+    user))
+
+(defn remove-user!
+  [id]
+  (swap! user-table dissoc id)
+  (swap! room-table dissoc id)
+  :ok)
+
+(defn reset-state! []
+  (reset! user-table {})
+  (reset! room-table initial-room-table)
+  :ok)
 
 (comment
-  @room-table
+  (keys @room-table)
+
+  (reset-state!)
+
+  (add-user! 1)
+  (remove-user! 1)
 
   ;; starting state
   (add-room :base-state starting-room)
