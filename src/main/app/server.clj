@@ -4,9 +4,14 @@
    [app.parser :refer [api-parser]]
    [app.resolvers :as resolvers]
    [org.httpkit.server :as http]
+   [compojure.core :refer :all]
+   [compojure.route :as route]
    [taoensso.sente.server-adapters.http-kit      :refer (get-sch-adapter)]
    [com.fulcrologic.fulcro.networking.websockets :as fws]
    [com.fulcrologic.fulcro.server.api-middleware :as server]
+   ;; not sure if I need this
+   ;;[ring.middleware.multipart-params]
+   [ring.util.response :as response]
    [ring.middleware.not-modified :refer [wrap-not-modified]]
    [ring.middleware.params :refer [wrap-params]]
    [ring.middleware.keyword-params :refer [wrap-keyword-params]]
@@ -14,14 +19,14 @@
    [ring.middleware.resource :refer [wrap-resource]]
    [ring.middleware.cookies :refer [wrap-cookies]]))
 
-(def ^:private not-found-handler
+(def cookie-name "user_id")
+(def cookie-path [:cookies cookie-name :value])
+
+(def not-found-handler
   (fn [req]
     {:status 404
      :headers {"Content-Type" "text/plain"}
      :body "Not Found"}))
-
-(def cookie-name "user_id")
-(def cookie-path [:cookies cookie-name :value])
 
 (defn create-cookie [{:keys [user/id]}]
   {:value id 
@@ -29,13 +34,18 @@
    ;;:http-only true
    })
 
+;; todo:
+;; 0. route to index automatically
+;; 1. create the UI grid and wormhole in each room
+;; 2. create server side mutation / state that holds wormhole connections
+;; 3. create url parameters used to route to a particular room / needs to influence loads
+;;    a. load by room id
+
+
 (defn create-user []
   (let [user-id (str (java.util.UUID/randomUUID))]
     ;; probably should create a db namespace
     (resolvers/add-user! user-id)))
-
-;; USERS AND COOKIES ARE THE SAME THING
-;; write this up somewhere
 
 ;; if no cookie exists on the req chain
 ;; create a userid
@@ -45,6 +55,7 @@
   (fn [req]
     (util/log "user-middleware: req")
     (let [cookie       (get-in req cookie-path)
+          ;; user/id is the same as the cookie
           user         (get @resolvers/user-table cookie)
           ;; create the user if the user doesn't exist
           create-user? (nil? user)
@@ -66,8 +77,6 @@
           {:status  500
            :headers {"Content-Type" "text/plain"}
            :body    "Server Error"})))))
-
-(inspect (cookie {:user/id 1}))
 
 (comment
   (cookie {:user/id "meow"})
@@ -93,6 +102,15 @@
 
 (defonce stop-fn (atom nil))
 
+(defroutes app
+  (route/resources "/")
+  (route/not-found "Not Found"))
+
+(defn always-index [handler]
+  (fn [req]
+    (handler
+      (assoc req :uri "/index.html"))))
+
 (defn start []
   (util/log "starting server")
   (let [websockets (fws/start! (fws/make-websockets
@@ -102,7 +120,8 @@
                                   :sente-options {:csrf-token-fn nil
                                                   :user-id-fn user-id-fn}}
                                  ))
-        middleware (-> not-found-handler
+        middleware (-> app
+                     always-index
                      (fws/wrap-api websockets)
                      user-middleware
                      wrap-cookies

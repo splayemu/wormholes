@@ -6,9 +6,21 @@
    [com.fulcrologic.fulcro.data-fetch :as df]
    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]))
 
+
+;; could define here a set of rooms that are exposed as url routes
+;; if the user enters in a bogus route, it could reroute to starting or w/e
+;; also we can now set some starting state and load the correct state
+;; try to load a different room state by setting the url
+
+(defn pathname []
+  js/window.location.pathname)
+
 (defn ^:export init
   "Shadow-cljs sets this up to be our entry-point function. See shadow-cljs.edn `:init-fn` in the modules of the main build."
   []
+  (js/console.log (pathname))
+
+  (js/history.replaceState (clj->js {:page 3}) "title 3" "/meow")
   (app/mount! app ui/Root "app")
   ;(df/load! app :friends ui/PersonList)
   ;(df/load! app :enemies ui/PersonList)
