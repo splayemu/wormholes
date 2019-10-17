@@ -3,6 +3,7 @@
    [app.util :as util :refer [inspect]]
    [app.parser :refer [api-parser]]
    [app.resolvers :as resolvers]
+   [app.state :as state]
    [org.httpkit.server :as http]
    [compojure.core :refer :all]
    [compojure.route :as route]
@@ -22,12 +23,6 @@
 (def cookie-name "user_id")
 (def cookie-path [:cookies cookie-name :value])
 
-(def not-found-handler
-  (fn [req]
-    {:status 404
-     :headers {"Content-Type" "text/plain"}
-     :body "Not Found"}))
-
 (defn create-cookie [{:keys [user/id]}]
   {:value id 
    ;;:max-age   (str (* 60 60))
@@ -42,10 +37,10 @@
 ;;    a. load by room id
 
 
-(defn create-user []
+(defn create-user! []
   (let [user-id (str (java.util.UUID/randomUUID))]
     ;; probably should create a db namespace
-    (resolvers/add-user! user-id)))
+    (state/add-user! user-id)))
 
 ;; if no cookie exists on the req chain
 ;; create a userid
@@ -56,11 +51,11 @@
     (util/log "user-middleware: req")
     (let [cookie       (get-in req cookie-path)
           ;; user/id is the same as the cookie
-          user         (get @resolvers/user-table cookie)
+          user         (get @state/user-table cookie)
           ;; create the user if the user doesn't exist
           create-user? (nil? user)
           user         (if create-user?
-                         (create-user)
+                         (create-user!)
                          user)]
       (try
         ;; pass down the user on the request context
@@ -72,15 +67,15 @@
         (catch Throwable e
           (util/log "user-middleware: Exception:" e)
           (util/log "user-middleware: Removing user state")
-          (resolvers/remove-user! (:user/id user))
+          (state/remove-user! (:user/id user))
           ;; for some reason this isn't returning to the client
           {:status  500
            :headers {"Content-Type" "text/plain"}
            :body    "Server Error"})))))
 
 (comment
-  (cookie {:user/id "meow"})
-  (cookie (create-user))
+  (create-cookie {:user/id "meow"})
+  (create- cookie (create-user!))
 
   (let [user tuser
         resp tresp]
