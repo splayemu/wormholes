@@ -18,19 +18,9 @@
     (get-in @state/room-table user-room-id)))
 
 (comment
-  (get-in @state/room-table ["1bdeac6c-3922-4deb-8b94-793c4a340766" :room.id/starting])
+  (get-in @state/room-table ["ce677006-71f7-4ee6-a63a-c6e4b8529e62" :room.id/starting])
 
   )
-
-
-
-#_(pc/defresolver room-resolver [env input]
-  {::pc/input #{:room/id}
-   ::pc/output [:room/id
-                :room/status]}
-  (util/log "calling room-resolver")
-  (let [user-id (:user/id (:user env))]
-    (get-in @state/room-table [user-id (:room/id input)])))
 
 (pc/defresolver user-resolver [env input]
   {::pc/output [:user]}
@@ -39,19 +29,24 @@
 (pc/defresolver user-room-resolver [env {:keys [room/id]}]
   {::pc/input #{:room/id}
    ::pc/output [:user-room/id]}
-  (util/log "user-room-resolver" id)
   (let [user-id (-> env :user :user/id)]
     {:user-room/id [user-id id]}))
 
-(pc/defresolver initial-state-resolver [env {:room/keys [id neighbors]}]
-  {::pc/input #{:room/id :room/neighbors}
-   ::pc/output [{:starting-state [{:center-room [:room/id]}
-                                  {:neighbors [:room/id]}]}]}
-  (do
-    (util/log "test")
-    {:starting-state {:center-room {:room/id id}
-                      ;;:neighbors [{:room/id :room.id/starting}]
-                      }}))
+(pc/defresolver initial-state-resolver [env input]
+  {::pc/output [:room-configuration]}
+  (let [user-id (-> env :user :user/id) 
+        room-id (-> env :ast :params :center-room-id)
+        room    (get-in @state/room-table [user-id room-id])
+
+        {:keys [room/id room/neighbors]} room
+        {:keys [up down left right]}     neighbors]
+    {:room-configuration {:center-room {:user-room/id [user-id room-id]}
+                          :up-room     (when up {:user-room/id [user-id up]})
+                          :down-room   (when down {:user-room/id [user-id down]})
+                          :left-room   (when left {:user-room/id [user-id left]})
+                          :right-room  (when right {:user-room/id [user-id right]})}}))
+
+
 
 (def resolvers
   [room-resolver

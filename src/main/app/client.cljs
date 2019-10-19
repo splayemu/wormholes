@@ -6,12 +6,6 @@
    [com.fulcrologic.fulcro.data-fetch :as df]
    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]))
 
-
-;; could define here a set of rooms that are exposed as url routes
-;; if the user enters in a bogus route, it could reroute to starting or w/e
-;; also we can now set some starting state and load the correct state
-;; try to load a different room state by setting the url
-
 (defn pathname []
   js/window.location.pathname)
 
@@ -22,16 +16,11 @@
         room-id (subs (pathname) 1)
         room-id (keyword (str "room.id/" room-id))]
 
-    (def troom room-id)
-
     ;;(js/history.replaceState (clj->js {:page 3}) "title 3" "/meow")
 
     (app/mount! app ui/Root "app")
-    ;; okay so how do we load a specific room and pass the user id
     (df/load! app :user nil {:target (targeting/replace-at [:user])})
-    (df/load! app [:room/id room-id] ui/Room {:target (targeting/replace-at [:center-room])})
-    ;; how do we load the neighbors?
-    ;; how do we load the user-id?
+    (df/load! app :room-configuration ui/RoomConfiguration {:params {:center-room-id room-id}})
     (js/console.log "Loaded")))
 
 (defn ^:export refresh
