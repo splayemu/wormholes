@@ -102,7 +102,7 @@
 (defn set-rooms!
   "Duplicate initial room state into user room table."
   [user-id]
-  (swap! room-table assoc  user-id initial-room-table-with-neighbors))
+  (swap! room-table assoc user-id (:base-state initial-room-table-with-neighbors)))
 
 (defn add-user!
   "Add the user and create initial state."

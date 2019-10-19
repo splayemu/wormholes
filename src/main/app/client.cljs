@@ -28,8 +28,10 @@
 
     (app/mount! app ui/Root "app")
     ;; okay so how do we load a specific room and pass the user id
+    (df/load! app :user nil {:target (targeting/replace-at [:user])})
     (df/load! app [:room/id room-id] ui/Room {:target (targeting/replace-at [:center-room])})
-    ;;
+    ;; how do we load the neighbors?
+    ;; how do we load the user-id?
     (js/console.log "Loaded")))
 
 (defn ^:export refresh

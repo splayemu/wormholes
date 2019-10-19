@@ -93,6 +93,7 @@
              {:keys [basic-style wormhole-opened]
               :as css}]
   {:query [:room/id
+           :user-room/id
            :room/items
            :wormhole/status
            :wormhole/connected]

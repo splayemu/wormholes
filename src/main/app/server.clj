@@ -112,7 +112,8 @@
                                  api-parser
                                  {:http-server-adapter (get-sch-adapter)
                                   :sente-options {:csrf-token-fn nil
-                                                  :user-id-fn user-id-fn}}
+                                                  :user-id-fn user-id-fn}
+                                  :parser-accepts-env? true}
                                  ))
         middleware (-> app
                      always-index

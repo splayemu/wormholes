@@ -8,6 +8,12 @@
 
 (def resolvers [app.resolvers/resolvers app.mutations/mutations])
 
+(def sample-plugin
+  {::p/wrap-parser
+   (fn [parser]
+     (fn [env tx]
+       (parser env tx)))})
+
 (def pathom-parser
   (p/parser {::p/env {::p/reader [p/map-reader
                                   pc/reader2
@@ -16,39 +22,32 @@
                       ::pc/mutation-join-globals [:tempids]}
              ::p/mutate pc/mutate
              ::p/plugins [(pc/connect-plugin {::pc/register resolvers})
-                          p/error-handler-plugin]}))
+                          p/error-handler-plugin
+                          sample-plugin]}))
 
-(defn api-parser [query]
-  (log/info "Process" query)
-  (pathom-parser {} query))
-
-
+(defn api-parser
+  ([query] (pathom-parser {} query))
+  ([env query]
+   (pathom-parser {:user (:user (:request env))} query)))
 
 (comment
-  (pathom-parser {:user/id :base-state}
-    [{:starting-state [:room/id :room/items :room/neighbors :wormhole/status :wormhole/connected]}])
 
 
-  (api-parser [{[:list/id :friends] [:list/id]}])
+  (api-parser {:request {:user {:user/id :base-state}}}
+    [:user/id
+     {[:room/id :room.id/starting] [:room/id :room/items :wormhole/status :wormhole/connected]}])
 
-  ;; with global parser
-  (api-parser [{:friends [:list/id {:list/people [:person/name]}]}])
+  (api-parser {:request {:user {:user/id :base-state}}}
+    [{[:room/id :room.id/starting] [:user-room/id :wormhole/status]}
+     :user])
 
-  (api-parser [:friends ])
+  (api-parser {:request {:user {:user/id :base-state}}}
+    [{:starting-state [:center-room :neighbors]}])
 
-  (api-parser [:user/id])
-  (api-parser [{[:room/id :room.id/starting] [:room/id]}])
+  (api-parser {:request {:user {:user/id :base-stat222e}}}
+    [{[:room/id :room.id/starting] [:room/id :user/id]}])
 
-  (api-parser [{:starting-state [:room/id :room/items :room/neighbors :wormhole/status :wormhole/connected]}])
-  (api-parser [{[:room/id :room.id/starting] [:room/id :room/items :room/neighbors :wormhole/status :wormhole/connected]}])
-  
-  (api-parser [{[:room/id :room.id/starting] [:room/id]}])
-
-  (api-parser [:user/id])
-
-  #_(api-parser [[[:room/id :room.id/starting] [:room/neighbors]] [:user/id :base-state]])
-
-
+  (api-parser {:request {:user {:user/id :base-easdfadsf}}} [:user/id])
   )
 
 
