@@ -18,15 +18,19 @@
 (defn ^:export init
   "Shadow-cljs sets this up to be our entry-point function. See shadow-cljs.edn `:init-fn` in the modules of the main build."
   []
-  (js/console.log (pathname))
+  (let [;; strip off starting "/"
+        room-id (subs (pathname) 1)
+        room-id (keyword (str "room.id/" room-id))]
 
-  (js/history.replaceState (clj->js {:page 3}) "title 3" "/meow")
-  (app/mount! app ui/Root "app")
-  ;(df/load! app :friends ui/PersonList)
-  ;(df/load! app :enemies ui/PersonList)
-  (df/load! app :starting-state ui/Room)
-  ;;(df/load! app [:person/id 3] ui/Person {:target (targeting/append-to [:list/id :friends :list/people])})
-  (js/console.log "Loaded"))
+    (def troom room-id)
+
+    ;;(js/history.replaceState (clj->js {:page 3}) "title 3" "/meow")
+
+    (app/mount! app ui/Root "app")
+    ;; okay so how do we load a specific room and pass the user id
+    (df/load! app [:room/id room-id] ui/Room {:target (targeting/replace-at [:center-room])})
+    ;;
+    (js/console.log "Loaded")))
 
 (defn ^:export refresh
   "During development, shadow-cljs will call this on every hot reload of source. See shadow-cljs.edn"

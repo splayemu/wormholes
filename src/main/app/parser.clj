@@ -22,7 +22,13 @@
   (log/info "Process" query)
   (pathom-parser {} query))
 
+
+
 (comment
+  (pathom-parser {:user/id :base-state}
+    [{:starting-state [:room/id :room/items :room/neighbors :wormhole/status :wormhole/connected]}])
+
+
   (api-parser [{[:list/id :friends] [:list/id]}])
 
   ;; with global parser
@@ -30,9 +36,17 @@
 
   (api-parser [:friends ])
 
+  (api-parser [:user/id])
+  (api-parser [{[:room/id :room.id/starting] [:room/id]}])
+
   (api-parser [{:starting-state [:room/id :room/items :room/neighbors :wormhole/status :wormhole/connected]}])
+  (api-parser [{[:room/id :room.id/starting] [:room/id :room/items :room/neighbors :wormhole/status :wormhole/connected]}])
   
-  (api-parser [:starting-room :starting-user])
+  (api-parser [{[:room/id :room.id/starting] [:room/id]}])
+
+  (api-parser [:user/id])
+
+  #_(api-parser [[[:room/id :room.id/starting] [:room/neighbors]] [:user/id :base-state]])
 
 
   )

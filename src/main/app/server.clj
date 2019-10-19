@@ -2,7 +2,6 @@
   (:require
    [app.util :as util :refer [inspect]]
    [app.parser :refer [api-parser]]
-   [app.resolvers :as resolvers]
    [app.state :as state]
    [org.httpkit.server :as http]
    [compojure.core :refer :all]

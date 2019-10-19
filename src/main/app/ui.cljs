@@ -133,18 +133,18 @@
 
 ;; how do we query the map of neighbors?
 (defsc Root [this
-             {:keys [starting-state]}
+             {:keys [center-room]}
              computed
              ;;{:keys [space]}
              ]
-  {:query [{:starting-state (comp/get-query Room)}
+  {:query [{:center-room (comp/get-query Room)}
            ;;{:neighbors {:starting-state (comp/get-query Room)}}
            ]
    ;;:css [[:.space {:background "black"}]]
    }
   (dom/div 
    (inj/style-element {:component Root})
-   (ui-room (inspect starting-state))
+   (ui-room (inspect center-room))
    #_(ui-room down)))
 
 
