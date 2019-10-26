@@ -6,6 +6,7 @@
    [com.fulcrologic.fulcro-css.css-injection :as inj]
    [app.mutations :as api]
    [app.util :refer-macros [inspect]]
+   [app.graphics :as graphics]
    ))
 
 ;; start from nothing
@@ -34,7 +35,22 @@
 ;; one keycard slot
 ;; 
 
-
+(def spiral
+  (dom/svg {:width "100%"
+            :viewBox "0 0 162.61878 166.3229"
+            :version "1.1"
+            :id "svg8"}
+    (dom/g {:id "layer1"
+            :transform "translate(0,-130.67721)"}
+      (dom/path {:id "path1"
+                 :style {"fill" "none",
+                         "fill-rule" "evenodd",
+                         "stroke-width" "0.26458332px",
+                         "stroke-linejoin" "miter",
+                         "stroke-opacity" "1",
+                         "stroke" "#000000",
+                         "stroke-linecap" "butt"}
+                 :d "m 78.364487,212.2036 c 0.284267,1.59189 -2.005595,1.16857 -2.645834,0.47247 -1.735007,-1.88639 -0.232517,-4.74557 1.700893,-5.76414 3.458415,-1.82198 7.51609,0.51027 8.882441,3.87426 2.005174,4.93679 -1.25027,10.33316 -6.047618,12.00074 -6.39411,2.22263 -13.167925,-1.9876 -15.119049,-8.22098 -2.45529,-7.84407 2.723253,-16.01141 10.394343,-18.23735 9.290718,-2.69592 18.859867,3.45787 21.355657,12.5677 2.941202,10.73563 -4.191835,21.71143 -14.741069,24.47396 -12.179508,3.18946 -24.565066,-4.92536 -27.592264,-16.91443 -3.439695,-13.62274 5.658582,-27.42015 19.087794,-30.71056 15.065546,-3.69135 30.276309,6.39158 33.828869,21.26115 3.94403,16.50804 -7.12443,33.13325 -23.434516,36.94718 -17.950315,4.19747 -35.990805,-7.85715 -40.06548,-25.60788 -4.451524,-19.39242 8.589772,-38.84885 27.781245,-43.18379 20.834396,-4.70604 41.707261,9.32232 46.302091,29.95461 4.96094,22.27627 -10.05481,44.566 -32.127974,49.42039 -23.718067,5.21615 -47.424991,-10.78725 -52.538695,-34.30133 -5.471603,-25.1598 11.519645,-50.2842 36.474695,-55.657 26.60147,-5.72727 53.143594,12.25201 58.775304,38.64806 5.98312,28.0431 -12.98435,56.00313 -40.821422,61.8936 -29.484691,6.23912 -58.862809,-13.71665 -65.01191,-42.99478 -6.495247,-30.92625 14.448944,-61.7226 45.168146,-68.13021 32.367786,-6.75149 64.582486,15.18121 71.248516,47.3415 7.00783,33.8093 -15.91347,67.44247 -49.51487,74.36683 -35.250778,7.26425 -70.302516,-16.64572 -77.485126,-51.68824 -7.5207508,-36.69225 17.377945,-73.16263 53.861598,-80.60343 38.133698,-7.77732 76.022818,18.11017 83.721738,56.03496 8.03394,39.57514 -18.84238,78.88305 -58.208327,86.84004 C 50.577096,294.57755 9.8503282,266.71236 1.6353212,225.90524 -6.912028,183.44726 21.942089,141.30158 64.19037,132.8286 c 43.89939,-8.80412 87.46402,21.03895 96.19495,64.72841 9.06093,45.34078 -21.77114,90.32443 -66.901775,99.31325"}))))
 
 
 {:item/id 1
@@ -87,23 +103,23 @@
    :wormhole/connected nil})
 
 (defsc Room [this
-             {:keys [room/id room/items wormhole/status wormhole/connected]
+             {:keys [room/id room/items wormhole/status wormhole/connected room/unaccessible?]
               :as props}
              {:as computed}
-             {:keys [basic-style wormhole-opened]
+             {:keys [basic-style wormhole-opened room-unaccessible]
               :as css}]
   {:query [:room/id
            :user-room/id
            :room/items
+           :room/unaccessible?
            :wormhole/status
            :wormhole/connected]
    :ident (fn [] (api/room-ident id))
    :css [[:.basic-style
           {:color "black"
-           :width "50%"
-           :height "50%"
-           :top "25%"
-           :left "25%"
+           :width "100%"
+           :height "100%"
+           :min-height "250px"
            :padding "12px"
            :font-size "2.2em"
            :--aug-border "6px"
@@ -115,40 +131,85 @@
            :--aug-tl "15px"
            :--aug-br "15px"}]
          [:.wormhole-opened
-          {:--aug-border-bg "linear-gradient(red, transparent), linear-gradient(to right, blue, transparent), black"}]]}
-  (let [wormhole-class (if (= status :wormhole.status/active)
-                         wormhole-opened
-                         nil)
+          {:--aug-border-bg "linear-gradient(red, transparent), linear-gradient(to right, blue, transparent), black"}]
+         [:.room-unaccessible
+          {:opacity 0.5}]
+         ;; global css class
+         [:$column {:display "flex"
+                    :flex-direction "column"}]
+         [:$left {:width "20%"}]
+         [:$right {:width "20%"}]]}
+  (let [unaccessible? (or (= unaccessible? true) (nil? id))
+        wormhole-class (cond
+                         unaccessible? room-unaccessible
+                         (= status :wormhole.status/active) wormhole-opened
+                         :else nil)
         on-wormhole-click #(comp/transact! this `[(api/click-wormhole {:room/id ~id})])]
     (dom/div {:classes [basic-style wormhole-class]
               :augmented-ui "br-round tl-round exe"}
-      (dom/div (str "I am room " id))
-      (dom/div {:onClick on-wormhole-click}
-        (str "I am a wormhole " status))
-      (when items
-        (dom/div :.items
-          (dom/ul
-            (map (fn [item] (ui-item item)) items)))))))
+      (when-not unaccessible?
+        (dom/div {:style {:display "flex"
+                          :justify-content "space-between"}}
+          (dom/div :.left.column )
+          (dom/div :.mid.column 
+            (dom/div {:style {:text-align "center"}}
+              (name id))
+            (dom/div {:onClick on-wormhole-click}
+              (dom/div :.spiral-wrapper {:style {:height "80%"
+                                                 :padding "5px"}}
+                spiral)))
+          (dom/div :.right.column 
+            (when items
+              (dom/div :.items
+                (dom/ul
+                  (map (fn [item] (ui-item item)) items))))))))))
 
 (def ui-room (comp/factory Room {:keyfn :room/id}))
 
 (defsc RoomConfiguration [this
              {:keys [center-room up-room down-room left-room right-room] :as props}
              computed
-             ]
+             {:keys [grid-wrapper]}]
   {:query [{:center-room (comp/get-query Room)}
            {:up-room (comp/get-query Room)}
            {:down-room (comp/get-query Room)}
            {:left-room (comp/get-query Room)}
            {:right-room (comp/get-query Room)}]
-   }
-  (dom/div 
-    (ui-room up-room)
-    (ui-room left-room)
-    (ui-room center-room)
-    (ui-room right-room)
-    (ui-room down-room)
-    ))
+
+   :css [[:.grid-wrapper {:height "calc(100% - 42px)"
+                          :width "calc(100% - 42px)"
+                          :display "grid"
+                          :grid-template-columns "repeat(3, 1fr)"
+                          :grid-gap "42px"
+                          :grid-template-rows "repeat(3, 1fr)"}]]}
+  (dom/div {:classes [grid-wrapper]}
+    (dom/div {:style {:grid-column 1
+                      :grid-row 1}}
+      (ui-room {:room/unaccessible? true}))
+    (dom/div {:style {:grid-column 2
+                      :grid-row 1}}
+      (ui-room up-room))
+    (dom/div {:style {:grid-column 3
+                      :grid-row 1}}
+      (ui-room {:room/unaccessible? true}))
+    (dom/div {:style {:grid-column 1
+                      :grid-row 2}}
+      (ui-room left-room))
+    (dom/div {:style {:grid-column 2
+                      :grid-row 2}}
+      (ui-room center-room))
+    (dom/div {:style {:grid-column 3
+                      :grid-row 2}}
+      (ui-room right-room))
+    (dom/div {:style {:grid-column 1
+                      :grid-row 3}}
+      (ui-room {:room/unaccessible? true}))
+    (dom/div {:style {:grid-column 2
+                      :grid-row 3}}
+      (ui-room down-room))
+    (dom/div {:style {:grid-column 3
+                      :grid-row 3}}
+      (ui-room {:room/unaccessible? true}))))
 
 (def ui-room-configuration (comp/factory RoomConfiguration))
 
@@ -162,7 +223,7 @@
    }
   (dom/div 
     (inj/style-element {:component Root})
-    (ui-room-configuration room-configuration)))
+    (ui-room-configuration (inspect room-configuration))))
 
 
 
