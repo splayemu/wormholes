@@ -36,7 +36,10 @@
 
 (defsc Wormhole [this
                  {:keys [wormhole/status] :as props}
-                 {:keys [on-wormhole-click] :as computed}
+                 {:keys [on-wormhole-click
+                         on-wormhole-mouse-enter
+                         on-wormhole-mouse-leave]
+                  :as computed}
                  {:as css}
                  ]
   {:query [:wormhole/status]
@@ -66,7 +69,10 @@
            {"transform" "scale(0.4)"
             "stroke-dashoffset" (* spiral-length 0.6)}]
           [:&$activated
-           {"stroke-dashoffset" 0}]]
+           {"stroke-dashoffset" 0}]
+          [:&$hover
+           {"transform" "scale(0.7)"
+            "stroke-dashoffset" (* spiral-length 0.4)}]]
          [:$wormhole-activated-animation
           ^:prefix {:animation (str "rotate 2s infinite linear," "meow 2s infinite linear")}]
          
@@ -74,16 +80,20 @@
          rotate
          ]}
 
-  (let [path-classes (if (= status :wormhole.status/active)
-                       ["wormhole" "activated"]
-                       ["wormhole" "unactivated"])]
-    (dom/div {:onClick on-wormhole-click}
+  (let [path-classes (cond
+                       (= status :wormhole.status/active) ["wormhole" "activated"]
+                       (= status :wormhole.status/hover) ["wormhole" "hover"]
+                       :else ["wormhole" "unactivated"])]
+    (dom/div 
       (dom/div :.spiral-wrapper
         (dom/svg {:width "100%"
                   :viewBox "0 0 162.61878 166.3229"
+                  :onClick on-wormhole-click
+                  :onMouseLeave on-wormhole-mouse-leave
+                  :onMouseEnter on-wormhole-mouse-enter
                   :id "spiral"}
-          (dom/g
-            (dom/path {:classes path-classes
+          (dom/g {:classes path-classes}
+            (dom/path {
                        :d spiral-path})))))))
 
 
@@ -211,7 +221,9 @@
                          unaccessible? room-unaccessible
                          active? wormhole-opened
                          :else nil)
-        on-wormhole-click #(comp/transact! this `[(api/click-wormhole {:room/id ~id})])]
+        mouse-events {:on-wormhole-click #(comp/transact! this `[(api/click-wormhole {:room/id ~id})])
+                      :on-wormhole-mouse-enter #(comp/transact! this `[(api/mouse-enter-wormhole {:room/id ~id})])
+                      :on-wormhole-mouse-leave #(comp/transact! this `[(api/mouse-leave-wormhole {:room/id ~id})])}]
     (dom/div {:classes [basic-style wormhole-class]
               :augmented-ui "br-round tl-round exe"}
       (when-not unaccessible?
@@ -221,7 +233,7 @@
           (dom/div :.mid.column 
             (dom/div {:style {:text-align "center"}}
               (name id))
-            (ui-wormhole (comp/computed props {:on-wormhole-click on-wormhole-click})))
+            (ui-wormhole (comp/computed props mouse-events)))
           (dom/div :.right.column 
             (when items
               (dom/div :.items
