@@ -10,10 +10,12 @@
 (defn room-ident [id]
   [:room/by-id id])
 
-(def starting-room-id :room.id/starting)
-
 (def starting-room-ident
-  (room-ident starting-room-id))
+  [:room-configuration :center-room])
+
+;; this is not done correctly
+(defn get-center-room [state]
+  (get-in state (get-in state starting-room-ident)))
 
 (defn activate-wormhole [room]
   (merge room {:wormhole/status :wormhole.status/active}))
@@ -22,7 +24,8 @@
   #{:wormhole.status/deactive :wormhole.status/hover})
 
 (defn can-open-wormhole? [state clicked-id]
-  (let [{clicked-status :wormhole/status} (get-in state (room-ident clicked-id))
+  (let [{clicked-status :wormhole/status}  (get-in state (room-ident clicked-id))
+        starting-room-id                   (:room/id (get-center-room state))
         {starting-status :wormhole/status} (get-in state (room-ident starting-room-id))]
     (cond
       (and
@@ -50,12 +53,28 @@
 
   )
 
+;; how do we trigger this mutation optionally from another mutation?
+(defmutation make-connection
+  [{:keys [connection/from
+           connection/to] :as params}]
+  (action [{:keys [state]}]
+    (js/console.log "make-connection" params)))
+
+;; if center wormhole is activated and new wormhole is opened,
+;; then we open the connection
+
 (defmutation click-wormhole
-  "Mutation: "
   [{:keys [room/id] :as params}]
   (action [{:keys [state]}]
     (js/console.log "clicked" params)
-    (swap! state toggle-room-wormhole id)))
+    (let [state-map    (swap! state toggle-room-wormhole id)
+          center-room  (get-center-room state-map)
+          clicked-room (get-in state-map (room-ident id))]
+      (when (and (not= (:room/id center-room) (:room/id clicked-room))
+              (= (:wormhole/status center-room) :wormhole.status/active)
+              (= (:wormhole/status clicked-room) :wormhole.status/active))
+        (js/console.log "activated")
+        ))))
 
 (defn enter-room-wormhole [state room-id]
   (let [hover-room-ident (room-ident room-id)

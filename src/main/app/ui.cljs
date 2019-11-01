@@ -38,7 +38,8 @@
                  {:keys [wormhole/status] :as props}
                  {:keys [on-wormhole-click
                          on-wormhole-mouse-enter
-                         on-wormhole-mouse-leave]
+                         on-wormhole-mouse-leave
+                         center?]
                   :as computed}
                  {:as css}
                  ]
@@ -66,26 +67,26 @@
            :transform-origin  "48.5% 49%"
            "stroke-dasharray" (str spiral-length " " spiral-length)}
           [:&$unactivated
-           {"transform" "scale(0.4)"
+           {"transform" "scale(0.2)"
             "stroke-dashoffset" (* spiral-length 0.6)}]
           [:&$activated
            {"stroke-dashoffset" 0}]
           [:&$hover
            {"transform" "scale(0.7)"
             "stroke-dashoffset" (* spiral-length 0.4)}]]
-         [:$wormhole-activated-animation
-          ^:prefix {:animation (str "rotate 2s infinite linear," "meow 2s infinite linear")}]
-         
-         meow
+         [:$wormhole-rotating-animation
+          ^:prefix {:animation "rotate 2s infinite linear"}]
          rotate
          ]}
 
   (let [path-classes (cond
                        (= status :wormhole.status/active) ["wormhole" "activated"]
                        (= status :wormhole.status/hover) ["wormhole" "hover"]
-                       :else ["wormhole" "unactivated"])]
-    (dom/div 
-      (dom/div :.spiral-wrapper
+                       :else ["wormhole" "unactivated"])
+
+        openable-wormhole? (and (= status :wormhole.status/hover) (not center?))
+
+        spiral-svg
         (dom/svg {:width "100%"
                   :viewBox "0 0 162.61878 166.3229"
                   :onClick on-wormhole-click
@@ -93,9 +94,19 @@
                   :onMouseEnter on-wormhole-mouse-enter
                   :id "spiral"}
           (dom/g {:classes path-classes}
-            (dom/path {
-                       :d spiral-path})))))))
+            (dom/path :.wormhole-rotating-animation {:d spiral-path})))]
+    (dom/div 
+      (if openable-wormhole?
+        (dom/div :.spiral-wrapper {:href "/down" :target "_blank"}
+          spiral-svg)
+        (dom/div :.spiral-wrapper
+          spiral-svg)))))
 
+
+(comment
+  (js/window.open "/down" "_blank")
+
+  )
 
 ;; good for rotating animation
 "stroke-dasharray" "200"
@@ -233,7 +244,7 @@
           (dom/div :.mid.column 
             (dom/div {:style {:text-align "center"}}
               (name id))
-            (ui-wormhole (comp/computed props mouse-events)))
+            (ui-wormhole (comp/computed props (merge computed mouse-events))))
           (dom/div :.right.column 
             (when items
               (dom/div :.items
@@ -273,7 +284,7 @@
       (ui-room left-room))
     (dom/div {:style {:grid-column 2
                       :grid-row 2}}
-      (ui-room center-room))
+      (ui-room (comp/computed center-room {:center? true})))
     (dom/div {:style {:grid-column 3
                       :grid-row 2}}
       (ui-room right-room))

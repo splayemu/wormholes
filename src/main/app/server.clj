@@ -28,14 +28,6 @@
    ;;:http-only true
    })
 
-;; todo:
-;; 0. route to index automatically
-;; 1. create the UI grid and wormhole in each room
-;; 2. create server side mutation / state that holds wormhole connections
-;; 3. create url parameters used to route to a particular room / needs to influence loads
-;;    a. load by room id
-
-
 (defn create-user! []
   (let [user-id (str (java.util.UUID/randomUUID))]
     ;; probably should create a db namespace
@@ -105,10 +97,11 @@
     (handler
       (assoc req :uri "/index.html"))))
 
+;; need to hook into logic when creating and closing a new sente connection
+
 (defn start []
   (util/log "starting server")
   (let [websockets (fws/start! (fws/make-websockets
-                                 ;; need to add middleware here to parse out the cookie
                                  api-parser
                                  {:http-server-adapter (get-sch-adapter)
                                   :sente-options {:csrf-token-fn nil
