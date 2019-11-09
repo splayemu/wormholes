@@ -5,7 +5,9 @@
 ;; wormhole.status
 #{:wormhole.status/active
   :wormhole.status/opened
-  :wormhole.status/deactive}
+  :wormhole.status/deactive
+  :wormhole.status/connecting
+  }
 
 ;; starting state
 (def starting-room
@@ -13,14 +15,14 @@
    :room/coords [0 0]
    :room/items []
    :wormhole/status :wormhole.status/deactive
-   :wormhole/connected nil})
+   :wormhole/connection nil})
 
 (def down-room
   {:room/id :room.id/down
    :room/coords [0 1]
    :room/items [{:item/id 1}]
    :wormhole/status :wormhole.status/deactive
-   :wormhole/connected nil})
+   :wormhole/connection nil})
 
 ;; user
 {:user/id :uuid

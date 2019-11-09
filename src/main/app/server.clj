@@ -24,7 +24,7 @@
 
 (defn create-cookie [{:keys [user/id]}]
   {:value id 
-   ;;:max-age   (str (* 60 60))
+   ;;:max-age   (str (* 60 60 365))
    ;;:http-only true
    })
 
@@ -32,6 +32,10 @@
   (let [user-id (str (java.util.UUID/randomUUID))]
     ;; probably should create a db namespace
     (state/add-user! user-id)))
+
+;; TODO
+;; we should change this to return the immutable base state
+;; until they make a change, then we create the user state
 
 ;; if no cookie exists on the req chain
 ;; create a userid
@@ -76,15 +80,17 @@
 
 (defn log-middleware [handler]
   (fn [req]
-    (def tlogreq req)
-    (util/log "log-middleware: req:" req)
+    #_(do
+      (def tlogreq req)
+      (util/log "log-middleware: req:" req))
     (let [resp (handler req)]
-      (def tlogresp resp)
-      (util/log "log-middleware: resp:" resp)
+      #_(do
+        (def tlogresp resp)
+        (util/log "log-middleware: resp:" resp))
       resp)))
 
 (defn user-id-fn [req]
-  (inspect (-> req :user :user/id)))
+  (-> req :user :user/id))
 
 (defonce stop-fn (atom nil))
 
@@ -97,8 +103,6 @@
     (handler
       (assoc req :uri "/index.html"))))
 
-;; need to hook into logic when creating and closing a new sente connection
-
 (defn start []
   (util/log "starting server")
   (let [websockets (fws/start! (fws/make-websockets
@@ -106,8 +110,8 @@
                                  {:http-server-adapter (get-sch-adapter)
                                   :sente-options {:csrf-token-fn nil
                                                   :user-id-fn user-id-fn}
-                                  :parser-accepts-env? true}
-                                 ))
+                                  :parser-accepts-env? true}))
+        connected-uids (:connected-uids websockets)
         middleware (-> app
                      always-index
                      (fws/wrap-api websockets)
@@ -118,13 +122,13 @@
                      log-middleware
                      (wrap-resource "public")
                      wrap-content-type
-                     wrap-not-modified
-                     )
+                     wrap-not-modified)
         server (http/run-server middleware {:port 3000})]
     (reset! stop-fn
       (fn []
         (fws/stop! websockets)
-        (server)))))
+        (server)))
+    connected-uids))
 
 (defn stop []
   (when @stop-fn
@@ -132,7 +136,10 @@
     (reset! stop-fn nil)))
 
 (comment
-  (start)
+  (let [connected-uids (start)]
+    (def curr-uids connected-uids))
+  
+  @curr-uids
 
   (stop)
 

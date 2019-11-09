@@ -80,6 +80,7 @@
          ]}
 
   (let [path-classes (cond
+                       (= status :wormhole.status/connected) ["wormhole" "activated"]
                        (= status :wormhole.status/active) ["wormhole" "activated"]
                        (= status :wormhole.status/hover) ["wormhole" "hover"]
                        :else ["wormhole" "unactivated"])
@@ -97,6 +98,7 @@
             (dom/path :.wormhole-rotating-animation {:d spiral-path})))]
     (dom/div 
       (if openable-wormhole?
+        ;; should point to the new one clicked on
         (dom/div :.spiral-wrapper {:href "/down" :target "_blank"}
           spiral-svg)
         (dom/div :.spiral-wrapper
@@ -170,22 +172,13 @@
 ;; wormhole.statuss
 #{:wormhole.status/active
   :wormhole.status/opened
-  :wormhole.status/deactive}
+  :wormhole.status/deactive
+  :wormhole.status/connected}
 
-(def starting-room
-  {:room/id :room.id/starting
-   :room/items []
-   :wormhole/status :wormhole.status/deactive
-   :wormhole/connected nil})
-
-(def down-room
-  {:room/id :room.id/down
-   :room/items [{:item/id 1}]
-   :wormhole/status :wormhole.status/deactive
-   :wormhole/connected nil})
+(def active-wormhole-status? #{:wormhole.status/active :wormhole.status/connected})
 
 (defsc Room [this
-             {:keys [room/id room/items wormhole/status wormhole/connected room/unaccessible?]
+             {:keys [room/id room/items wormhole/status wormhole/connection room/unaccessible?]
               :as props}
              {:as computed}
              {:keys [basic-style wormhole-opened room-unaccessible]
@@ -195,7 +188,7 @@
            :room/items
            :room/unaccessible?
            :wormhole/status
-           :wormhole/connected
+           :wormhole/connection
            ;; dirty hack to get the wormhole css added
            {:wormhole (comp/get-query Wormhole)}
            ]
@@ -218,7 +211,6 @@
          [:.wormhole-opened
           {:--aug-border-bg "linear-gradient(red, transparent), linear-gradient(to right, blue, transparent), black"}]
 
-         
          [:.room-unaccessible
           {:opacity 0.5}]
          ;; global css class
@@ -227,7 +219,7 @@
          [:$left {:width "20%"}]
          [:$right {:width "20%"}]]}
   (let [unaccessible? (or (= unaccessible? true) (nil? id))
-        active? (= status :wormhole.status/active)
+        active? (active-wormhole-status? status)
         wormhole-class (cond
                          unaccessible? room-unaccessible
                          active? wormhole-opened

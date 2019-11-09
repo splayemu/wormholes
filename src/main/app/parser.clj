@@ -52,8 +52,6 @@
     ['(:room-configuration {:center-room-id :room.id/starting})
 ])
 
-  room
-
   (api-parser
     {:request {:user {:user/id "ce677006-71f7-4ee6-a63a-c6e4b8529e62"}}}
     ['({:room-configuration

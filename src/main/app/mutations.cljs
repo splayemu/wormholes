@@ -2,6 +2,7 @@
   (:require
    [app.util :as util :refer-macros [inspect]]
    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+   [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.fulcro.algorithms.merge :as merge]))
 
 (defn item-ident [id]
@@ -13,7 +14,6 @@
 (def starting-room-ident
   [:room-configuration :center-room])
 
-;; this is not done correctly
 (defn get-center-room [state]
   (get-in state (get-in state starting-room-ident)))
 
@@ -53,19 +53,12 @@
 
   )
 
-;; how do we trigger this mutation optionally from another mutation?
-(defmutation make-connection
-  [{:keys [connection/from
-           connection/to] :as params}]
-  (action [{:keys [state]}]
-    (js/console.log "make-connection" params)))
-
 ;; if center wormhole is activated and new wormhole is opened,
 ;; then we open the connection
 
 (defmutation click-wormhole
   [{:keys [room/id] :as params}]
-  (action [{:keys [state]}]
+  (action [{:keys [state app]}]
     (js/console.log "clicked" params)
     (let [state-map    (swap! state toggle-room-wormhole id)
           center-room  (get-center-room state-map)
@@ -73,7 +66,9 @@
       (when (and (not= (:room/id center-room) (:room/id clicked-room))
               (= (:wormhole/status center-room) :wormhole.status/active)
               (= (:wormhole/status clicked-room) :wormhole.status/active))
-        (js/console.log "activated")
+        (comp/transact! app `[(app.mutations/make-connection
+                                 {:connection/from ~(:room/id center-room)
+                                  :connection/to ~(:room/id clicked-room)})])
         ))))
 
 (defn enter-room-wormhole [state room-id]
@@ -104,3 +99,17 @@
     (js/console.log "mouseoff" params)
     (swap! state leave-room-wormhole id)))
 
+
+;; Connection mutations
+(defmutation initialize-connection
+  [{:keys [connection/from
+           connection/to] :as params}]
+  (action [{:keys [state]}]
+    (js/console.log "initialze-connection" params))
+  (remote [env] true))
+
+(defmutation confirm-connection
+  [{:keys [connection/room-id] :as params}]
+  (action [{:keys [state]}]
+    (js/console.log "confirm-connection" params))
+  (remote [env] true))
