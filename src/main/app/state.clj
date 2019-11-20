@@ -7,6 +7,7 @@
   :wormhole.status/opened
   :wormhole.status/deactive
   :wormhole.status/connecting
+  :wormhole.status/connected
   }
 
 ;; starting state
@@ -128,6 +129,9 @@
 
 (comment
   (keys @room-table)
+
+  (count (keys @user-table))
+  (count (keys @room-table))
 
   (reset-state!)
 

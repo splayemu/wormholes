@@ -35,7 +35,7 @@
     (graphics/translate-path-str {:y-translation -130.67721})))
 
 (defsc Wormhole [this
-                 {:keys [wormhole/status] :as props}
+                 {:keys [wormhole/status room/id] :as props}
                  {:keys [on-wormhole-click
                          on-wormhole-mouse-enter
                          on-wormhole-mouse-leave
@@ -43,7 +43,10 @@
                   :as computed}
                  {:as css}
                  ]
-  {:query [:wormhole/status]
+
+
+  {:query [:wormhole/status
+           :room/id]
    :css [
          #_[:$wormhole-activated-animation
             {
@@ -81,6 +84,7 @@
 
   (let [path-classes (cond
                        (= status :wormhole.status/connected) ["wormhole" "activated"]
+                       (= status :wormhole.status/connecting) ["wormhole" "activated"]
                        (= status :wormhole.status/active) ["wormhole" "activated"]
                        (= status :wormhole.status/hover) ["wormhole" "hover"]
                        :else ["wormhole" "unactivated"])
@@ -99,7 +103,7 @@
     (dom/div 
       (if openable-wormhole?
         ;; should point to the new one clicked on
-        (dom/div :.spiral-wrapper {:href "/down" :target "_blank"}
+        (dom/a :.spiral-wrapper {:href (str "/" (name id)) :target "_blank"}
           spiral-svg)
         (dom/div :.spiral-wrapper
           spiral-svg)))))
@@ -175,7 +179,7 @@
   :wormhole.status/deactive
   :wormhole.status/connected}
 
-(def active-wormhole-status? #{:wormhole.status/active :wormhole.status/connected})
+(def active-wormhole-status? #{:wormhole.status/active :wormhole.status/connected :wormhole.status/connecting})
 
 (defsc Room [this
              {:keys [room/id room/items wormhole/status wormhole/connection room/unaccessible?]

@@ -20,8 +20,26 @@
 (defn activate-wormhole [room]
   (merge room {:wormhole/status :wormhole.status/active}))
 
+(def active-status?
+  #{:wormhole.status/connected})
+
 (def deactive-status?
   #{:wormhole.status/deactive :wormhole.status/hover})
+
+(defn room->wormhole-status [state-map clicked-id]
+  (:wormhole/status (get-in state-map (room-ident clicked-id))))
+
+(defn can-close-wormhole? [state-map clicked-id]
+  (let [clicked-status (room->wormhole-status state-map clicked-id)]
+    (not (active-status? clicked-status))))
+
+(comment
+  (let [state-map (assoc-in {} (room-ident :center-room)
+                    {:room/id :center-room
+                     :wormhole/status :wormhole.status/connected})]
+    (can-close-wormhole? state-map :center-room))
+
+  )
 
 (defn can-open-wormhole? [state clicked-id]
   (let [{clicked-status :wormhole/status}  (get-in state (room-ident clicked-id))
@@ -60,16 +78,17 @@
   [{:keys [room/id] :as params}]
   (action [{:keys [state app]}]
     (js/console.log "clicked" params)
-    (let [state-map    (swap! state toggle-room-wormhole id)
-          center-room  (get-center-room state-map)
-          clicked-room (get-in state-map (room-ident id))]
-      (when (and (not= (:room/id center-room) (:room/id clicked-room))
-              (= (:wormhole/status center-room) :wormhole.status/active)
-              (= (:wormhole/status clicked-room) :wormhole.status/active))
-        (comp/transact! app `[(app.mutations/make-connection
-                                 {:connection/from ~(:room/id center-room)
-                                  :connection/to ~(:room/id clicked-room)})])
-        ))))
+    (when (inspect (can-close-wormhole? @state id))
+      (let [state-map    (swap! state toggle-room-wormhole id)
+            center-room  (get-center-room state-map)
+            clicked-room (get-in state-map (room-ident id))]
+        (when (and (not= (:room/id center-room) (:room/id clicked-room))
+                (= (:wormhole/status center-room) :wormhole.status/active)
+                (= (:wormhole/status clicked-room) :wormhole.status/active))
+          (comp/transact! app `[(app.mutations/initialize-connection
+                                  {:connection/from ~(:room/id center-room)
+                                   :connection/to ~(:room/id clicked-room)})])
+          )))))
 
 (defn enter-room-wormhole [state room-id]
   (let [hover-room-ident (room-ident room-id)

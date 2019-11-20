@@ -32,10 +32,11 @@
 ;;
 
 ;; TODO:
-;; [ ] flesh out a connection model as well
-;; [ ] connection storage
-;; [ ] creating finalized connections
-;; [ ] updating wormhole state to include finalized connections
+;; [x] flesh out a connection model as well
+;; [x] connection storage
+;; [x] creating finalized connections
+;; [x] updating wormhole state to include finalized connections
+;; [ ] pushing connections to other clients
 ;; [ ] breaking connections
 ;; [ ] pushing broken connections to the client
 
@@ -105,11 +106,11 @@
   (def tuser-id user-id)
   (def troom-id room-id)
   (let [connected-room-id (:room/id (inspect (get-connected-room room-table-map user-id room-id)))
-        connection-waiting? (connection-waiting?
-                              room-table-map
-                              [user-id connected-room-id]
-                              [user-id room-id])]
-    (if (and (inspect connected-room-id) (inspect connection-waiting?))
+        connection-waiting?* (connection-waiting?
+                               room-table-map
+                               [user-id connected-room-id]
+                               [user-id room-id])]
+    (if (and (inspect connected-room-id) (inspect connection-waiting?*))
       (connection->connected room-table-map [user-id room-id] [user-id connected-room-id])
       room-table-map)))
 
@@ -135,8 +136,6 @@
 
   (swap! state/room-table confirm-connection* "5dd59ac0-ced9-497e-b67d-2c2d067b9179" :room.id/down)
 
-  (swap! state/room-table update #(inspect %))
-
   )
 
 (pc/defmutation confirm-connection
@@ -146,7 +145,23 @@
   {::pc/sym `confirm-connection}
   (let [user-id (-> env :user :user/id)]
     (log/info "Confirming connection" user-id room-id)
-    (swap! state/room-table update confirm-connection* user-id room-id)))
+    (swap! state/room-table confirm-connection* user-id room-id)))
 
+(defn break-connection* [room-table-map user-id room-id]
+  room-table-map)
 
-(def mutations [initialize-connection confirm-connection])
+(comment
+  (swap! state/room-table break-connection* "5dd59ac0-ced9-497e-b67d-2c2d067b9179" :room.id/down)
+
+  )
+
+(pc/defmutation break-connection
+  [env
+   {:keys [connection/room-id]
+    :as params}]
+  {::pc/sym `break-connection}
+  (let [user-id (-> env :user :user/id)]
+    (log/info "Breaking connection" user-id room-id)
+    (swap! state/room-table break-connection* user-id room-id)))
+
+(def mutations [initialize-connection confirm-connection break-connection])

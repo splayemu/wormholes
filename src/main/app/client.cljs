@@ -15,17 +15,21 @@
          room-id (keyword (str "room.id/" room-id))]
      room-id)))
 
+(defn init! [room-id]
+  (app/mount! app ui/Root "app")
+  (df/load! app :user nil {:target (targeting/replace-at [:user])})
+  (df/load! app :room-configuration ui/RoomConfiguration {:params {:center-room-id room-id}})
+  (js/console.log "Loaded")
+  (comp/transact! app `[(app.mutations/confirm-connection
+                          {:connection/room-id ~room-id})]))
+
 (defn ^:export init
   "Shadow-cljs sets this up to be our entry-point function. See shadow-cljs.edn `:init-fn` in the modules of the main build."
   []
   (let [room-id (pathname->room-id)]
 
     ;;(js/history.replaceState (clj->js {:page 3}) "title 3" "/meow")
-
-    (app/mount! app ui/Root "app")
-    (df/load! app :user nil {:target (targeting/replace-at [:user])})
-    (df/load! app :room-configuration ui/RoomConfiguration {:params {:center-room-id room-id}})
-    (js/console.log "Loaded")))
+    (init! room-id)))
 
 (defn ^:export refresh
   "During development, shadow-cljs will call this on every hot reload of source. See shadow-cljs.edn"
@@ -40,7 +44,8 @@
   (comp/transact! app `[(app.mutations/confirm-connection
                           {:connection/room-id ~room-id})]))
 
-(asdf (pathname->room-id))
+(comment 
+  (asdf (pathname->room-id))
 
+  )
 
-(keys app)
