@@ -1,10 +1,16 @@
 (ns app.mutations
   (:require
    [app.util :as util :refer [inspect]]
-   [app.parser :as parser]
    [app.state :as state]
    [com.wsscode.pathom.connect :as pc]
    [taoensso.timbre :as log]))
+
+;; duplicating in mutations.cljs
+(defn item-ident [id]
+  [:item/by-id id])
+
+(defn room-ident [id]
+  [:room/by-id id])
 
 ;; Properties of a connection
 ;; between two rooms
@@ -147,13 +153,14 @@
     (swap! state/room-table confirm-connection* user-id room-id)))
 
 (comment 
-  (let [user-id (-> tenv :user :user/id)]
+  (let [user-id (-> tenv :user :user/id)
+        user-room-id [user-id :room.id/down]
+        data (get-in @state/room-table user-room-id)]
     ((:push tenv) user-id [:api/server-push
                            {:topic :merge
                             :msg {:message/topic :merge
                                   :merge/component 'app.ui/Room
-                                  :merge/data {:room/id :room.id/down
-                                               :room/unaccessible? :derp}}}]))
+                                  :merge/data data}}]))
   
   )
 
@@ -166,9 +173,15 @@
   ;; how do we pass the query down?
   ;; perhaps using merge component isn't as good and instead we should just pass the query
   ;; down as data?
-  (parser/pathom-parser 
+  (;;parser/pathom-parser 
+   meow
     {:user {:user/id "d546db3a-7bc5-4fda-85e2-daefe73e779f"}}
-    [{[:room/id :room.id/starting] [:room/id :room/items :wormhole/status :wormhole/connected]}])
+    [{[:room/id :room.id/starting] [:room/id
+                                    :user-room/id
+                                    :room/items
+                                    {:room/neighbors [:room/id]}
+                                    :wormhole/status
+                                    :wormhole/connected]}])
 
   )
 

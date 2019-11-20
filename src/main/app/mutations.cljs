@@ -5,6 +5,7 @@
    [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.fulcro.algorithms.merge :as merge]))
 
+;; duplicating in mutations.clj
 (defn item-ident [id]
   [:item/by-id id])
 

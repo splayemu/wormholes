@@ -5,13 +5,13 @@
    [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.fulcro-css.css :as css]
    [com.fulcrologic.fulcro.algorithms.merge :as fulcro-merge]
-   [app.ui :as ui]
-   [app.messages]))
+   [app.messages]
+   [app.components]))
 
 (declare app)
 
 (def lame-symbol-mapping
-  {'app.ui/Room app.ui/Room})
+  {'app.components/Room app.components/Room})
 
 (defn merge-handler [{:keys [merge/component merge/data]}]
   (js/console.log "merge-handler:" component data)

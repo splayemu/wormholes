@@ -2,6 +2,7 @@
   (:require
    [app.application :refer [app]]
    [app.ui :as ui]
+   [app.components :as components]
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.fulcro.data-fetch :as df]
@@ -9,11 +10,7 @@
    [com.fulcrologic.fulcro.algorithms.merge :as fulcro-merge]))
 
 (comment
-  (fulcro-merge/merge-component!
-    app
-    {:room/id :room.id/down
-     :room/unaccessible? :derp}
-    )
+  
 
   )
 
@@ -26,7 +23,7 @@
      room-id)))
 
 (defn init! [room-id]
-  (app/mount! app ui/Root "app")
+  (app/mount! app components/Root "app")
   (df/load! app :user nil {:target (targeting/replace-at [:user])})
   (df/load! app :room-configuration ui/RoomConfiguration {:params {:center-room-id room-id}})
   (js/console.log "Loaded")
@@ -45,7 +42,7 @@
   "During development, shadow-cljs will call this on every hot reload of source. See shadow-cljs.edn"
   []
   ;; re-mounting will cause forced UI refresh, update internals, etc.
-  (app/mount! app ui/Root "app")
+  (app/mount! app components/Root "app")
   (js/console.log "Hot reload"))
 
 

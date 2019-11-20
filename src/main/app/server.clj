@@ -136,6 +136,7 @@
     (reset! stop-fn nil)))
 
 (comment
+  ;; start
   (let [connected-uids (start)]
     (def curr-uids connected-uids))
   
