@@ -1,7 +1,7 @@
 (ns app.mutations
   (:require
    [app.util :as util :refer [inspect]]
-   [app.resolvers :as resolvers]
+   [app.parser :as parser]
    [app.state :as state]
    [com.wsscode.pathom.connect :as pc]
    [taoensso.timbre :as log]))
@@ -99,8 +99,6 @@
   (let [connected-room-id (get-in room-table-map [user-id room-id :wormhole/connection])]
     (get-in room-table-map [user-id connected-room-id])))
 
-(get-connected-room troom-table-map tuser-id troom-id)
-
 (defn confirm-connection* [room-table-map user-id room-id]
   (def troom-table-map room-table-map)
   (def tuser-id user-id)
@@ -144,14 +142,33 @@
     :as params}]
   {::pc/sym `confirm-connection}
   (let [user-id (-> env :user :user/id)]
+    (def tenv env)
     (log/info "Confirming connection" user-id room-id)
     (swap! state/room-table confirm-connection* user-id room-id)))
+
+(comment 
+  (let [user-id (-> tenv :user :user/id)]
+    ((:push tenv) user-id [:api/server-push
+                           {:topic :merge
+                            :msg {:message/topic :merge
+                                  :merge/component 'app.ui/Room
+                                  :merge/data {:room/id :room.id/down
+                                               :room/unaccessible? :derp}}}]))
+  
+  )
 
 (defn break-connection* [room-table-map user-id room-id]
   room-table-map)
 
 (comment
   (swap! state/room-table break-connection* "5dd59ac0-ced9-497e-b67d-2c2d067b9179" :room.id/down)
+
+  ;; how do we pass the query down?
+  ;; perhaps using merge component isn't as good and instead we should just pass the query
+  ;; down as data?
+  (parser/pathom-parser 
+    {:user {:user/id "d546db3a-7bc5-4fda-85e2-daefe73e779f"}}
+    [{[:room/id :room.id/starting] [:room/id :room/items :wormhole/status :wormhole/connected]}])
 
   )
 

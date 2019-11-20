@@ -5,7 +5,17 @@
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.fulcro.data-fetch :as df]
-   [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]))
+   [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
+   [com.fulcrologic.fulcro.algorithms.merge :as fulcro-merge]))
+
+(comment
+  (fulcro-merge/merge-component!
+    app
+    {:room/id :room.id/down
+     :room/unaccessible? :derp}
+    )
+
+  )
 
 (defn pathname->room-id
   ([] (pathname->room-id js/window.location.pathname))

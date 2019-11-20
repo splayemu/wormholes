@@ -28,7 +28,10 @@
 (defn api-parser
   ([query] (pathom-parser {} query))
   ([env query]
-   (pathom-parser {:user (:user (:request env))} query)))
+   (def tenv env)
+   (pathom-parser {:user (:user (:request env))
+                   :push (:push env)}
+     query)))
 
 (comment
 
