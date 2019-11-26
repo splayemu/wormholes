@@ -3,6 +3,7 @@
 We need to update our other clients, or browser tabs, with the updated server state. Fulcro provides a way to return values from a mutation, but that only returns to the client that made the request.
 
 ## Pushing from the server to the client
+### Server -> Component
 
 Fulcro provides a `:push` key on the environment when using websockets that hooks into to the sente push function. We add it into the pathom parser like:
 
@@ -69,6 +70,20 @@ This doesn't make much sense since I don't want to couple the server->client bro
 
 3. Convert cljs Fulcro components into cljc 
 Fulcro has the nice property of defining much of it's code in cljc files. One benefit of defining the components in cljc is that you can share the query between the front and backends. Another benefit is server side rendering (which isn't relevant right now).
+
+### Server -> Merge w/ pathom resolver transform
+
+The next approach I tried was building a transformer for pathom resolvers. This lets you decorate a resolver and I used it to broadcast the merge to the connected clients.
+
+I went with adding the transform to the resolver and not the mutation because the mutation doesn't have the resolved UI state inside of it. We want to reuse our resolvers, as they are responsible for building up our client data tree. Right now the mutation finishes and the room resolver gets triggered
+
+This isn't a good approach because the resolver gets triggered on loads. If there isn't a state change, it doesn't really make sense to broadcast the changes.
+
+#### Difficulties 
+
+Got hung up on the `:parser` key inside of pathom. It seems like it should allow you to use it like the main pathom parser, else why expose it?
+
+Turns out though if you let a resolver or mutation trigger additional manual queries, you could spawn an infinite loop! 
 
 
 

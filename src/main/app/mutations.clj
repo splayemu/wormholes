@@ -3,6 +3,7 @@
    [app.util :as util :refer [inspect]]
    [app.state :as state]
    [com.wsscode.pathom.connect :as pc]
+   [com.fulcrologic.fulcro.components :as comp]
    [taoensso.timbre :as log]))
 
 ;; duplicating in mutations.cljs
@@ -84,7 +85,8 @@
   {::pc/sym `initialize-connection}
   (let [user-id (-> env :user :user/id)]
     (log/info "Initializing connection" from " to " to)
-    (swap! state/room-table initialize-two-way-connection user-id params)))
+    (swap! state/room-table initialize-two-way-connection user-id params)
+    {:room/id to}))
 
 (defn connection-waiting? [room-table-map room-ident-from room-ident-to]
   (let [room-from (get-in room-table-map room-ident-from)
@@ -142,46 +144,78 @@
 
   )
 
+(defn broadcast-result [component]
+  (fn [{::pc/keys [mutate] :as mutation}]
+    (assoc mutation
+      ::pc/mutate
+      (fn [env params]
+        (let [res (mutate env params)]
+          (log/info "broadcast-result-mutation" (component) res)
+          res)))))
+
+(comment (:displayName app.components/Room))
+
 (pc/defmutation confirm-connection
   [env
    {:keys [connection/room-id]
     :as params}]
-  {::pc/sym `confirm-connection}
+  {::pc/sym `confirm-connection
+   ;; broadcasts before querying for the room data
+   ::pc/transform (broadcast-result app.components/Room)
+   }
   (let [user-id (-> env :user :user/id)]
     (def tenv env)
     (log/info "Confirming connection" user-id room-id)
-    (swap! state/room-table confirm-connection* user-id room-id)))
+    (swap! state/room-table confirm-connection* user-id room-id)
+    {:room/id room-id}))
 
-(comment 
-  (let [user-id (-> tenv :user :user/id)
-        user-room-id [user-id :room.id/down]
-        data (get-in @state/room-table user-room-id)]
-    ((:push tenv) user-id [:api/server-push
-                           {:topic :merge
-                            :msg {:message/topic :merge
-                                  :merge/component 'app.ui/Room
-                                  :merge/data data}}]))
-  
+
+(comment
+  (user-room-ident->room-ident
+    [:user-room/id ["a6e5d6b6-7e27-4306-82fd-825c1f8ed687" :room.id/down]])
+
   )
 
 (defn break-connection* [room-table-map user-id room-id]
   room-table-map)
 
 (comment
+  ;; update the wormhole status
+  (swap! state/room-table update-in ["a6e5d6b6-7e27-4306-82fd-825c1f8ed687" :room.id/down] assoc :wormhole/status :wormhole.status/active)
+
+  (get-in @state/room-table ["a6e5d6b6-7e27-4306-82fd-825c1f8ed687" :room.id/down])
+
   (swap! state/room-table break-connection* "5dd59ac0-ced9-497e-b67d-2c2d067b9179" :room.id/down)
+
+  (require '[app.parser])
 
   ;; how do we pass the query down?
   ;; perhaps using merge component isn't as good and instead we should just pass the query
   ;; down as data?
-  (;;parser/pathom-parser 
-   meow
+  ((:parser tenv)
+
     {:user {:user/id "d546db3a-7bc5-4fda-85e2-daefe73e779f"}}
+   ;;[{[:room/id :room.id/down] [:room/id :wormhole/status]}]
+   
     [{[:room/id :room.id/starting] [:room/id
                                     :user-room/id
                                     :room/items
                                     {:room/neighbors [:room/id]}
                                     :wormhole/status
-                                    :wormhole/connected]}])
+                                    :wormhole/connected]}]
+   )
+
+  (app.parser/pathom-parser
+   {:user {:user/id :base-state}}
+   [{[:room/id :room.id/down] [:room/id :wormhole/status]}]
+   ;;[{[:room/id :room.id/starting] [:room/id
+   ;;                                :user-room/id
+   ;;                                :room/items
+   ;;                                {:room/neighbors [:room/id]}
+   ;;                                :wormhole/status
+   ;;                                :wormhole/connected]}]
+   )
+
 
   )
 

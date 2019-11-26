@@ -133,3 +133,8 @@
   (action [{:keys [state]}]
     (js/console.log "confirm-connection" params))
   (remote [env] true))
+
+(defmutation merge-push
+  [{:keys [merge/query merge/data]}]
+  (action [{:keys [state]}]
+    (swap! state merge/merge* query data)))

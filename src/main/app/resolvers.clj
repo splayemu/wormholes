@@ -2,8 +2,54 @@
   (:require
    [app.util :as util :refer [inspect]]
    [app.state :as state]
+   [taoensso.timbre :as log]
    [com.wsscode.pathom.core :as p]
    [com.wsscode.pathom.connect :as pc]))
+
+(defn user-room-ident->room-ident [user-room-ident]
+  [:room/by-id (-> user-room-ident :user-room/id second)])
+
+(comment
+  (user-room-ident->room-ident {:user-room/id [:meow :room-id]})
+
+  )
+
+(defn push-merge-query
+  "Pushes a merge query to the clients.
+
+  Never push the base-state up."
+  [push-fn user-id query data]
+  (when (not= user-id :base-state)
+    (let [merge-query-push {:message/topic :merge
+                            :merge/query   query
+                            :merge/data    data}]
+      (push-fn user-id [:api/server-push {:topic :merge
+                                         :msg   merge-query-push}]))))
+
+(defn nil-ident? [ident]
+  (-> ident second nil?))
+
+(defn broadcast-result
+  "Decorate a resolver to broadcast the query result using ident-fn to grab the
+  ident from the resolver's return data. "
+  [ident-fn]
+  (fn [{::pc/keys [resolve output] :as resolver}]
+    (log/info "broadcast-result associng ")
+    (assoc resolver
+      ::pc/resolve
+      (fn [{:keys [push] :as env} params]
+        (let [server-result (resolve env params)
+              user-id       (-> env :user :user/id)
+              ident         (ident-fn server-result)
+              data          {ident server-result}
+
+              _ (def tsr server-result)]
+          (if (nil-ident? ident)
+            (log/info user-id "Unable to broadcast to nil ident:" ident)
+            (do 
+              (log/info user-id "Broadcasting to ident:" ident)
+              (push-merge-query push user-id output data)))
+          server-result)))))
 
 (pc/defresolver room-resolver [env {user-room-id :user-room/id}]
   {::pc/input #{:user-room/id}
@@ -12,7 +58,8 @@
                 :room/items
                 {:room/neighbors [:room/id]}
                 :wormhole/status
-                :wormhole/connected]}
+                :wormhole/connected]
+   ::pc/transform (broadcast-result (fn [res] [:room/by-id (:room/id res)]))}
   (do 
     (util/log "room-resolver" user-room-id)
     (get-in @state/room-table user-room-id)))

@@ -13,12 +13,16 @@
 (def lame-symbol-mapping
   {'app.components/Room app.components/Room})
 
-(defn merge-handler [{:keys [merge/component merge/data]}]
-  (js/console.log "merge-handler:" component data)
+(defn merge-component-handler [{:keys [merge/component merge/data]}]
+  (js/console.log "merge-component-handler:" component data)
   (fulcro-merge/merge-component!
     app
     (lame-symbol-mapping component)
     data))
+
+(defn merge-handler [{:keys [merge/query merge/data] :as params}]
+  (js/console.log "merge-handler:" query data)
+  (comp/transact! app `[(app.mutations/merge-push ~params)]))
 
 (defn push-handler [{:keys [topic msg]}]
   (case topic
