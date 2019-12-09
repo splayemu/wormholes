@@ -9,6 +9,7 @@
    [taoensso.sente.server-adapters.http-kit      :refer (get-sch-adapter)]
    [com.fulcrologic.fulcro.networking.websockets :as fws]
    [com.fulcrologic.fulcro.server.api-middleware :as server]
+   [com.fulcrologic.fulcro.networking.websocket-protocols :refer [WSListener WSNet add-listener remove-listener client-added client-dropped]]
    ;; not sure if I need this
    ;;[ring.middleware.multipart-params]
    [ring.util.response :as response]
@@ -17,7 +18,8 @@
    [ring.middleware.keyword-params :refer [wrap-keyword-params]]
    [ring.middleware.content-type :refer [wrap-content-type]]
    [ring.middleware.resource :refer [wrap-resource]]
-   [ring.middleware.cookies :refer [wrap-cookies]]))
+   [ring.middleware.cookies :refer [wrap-cookies]]
+   [taoensso.timbre :as log]))
 
 (def cookie-name "user_id")
 (def cookie-path [:cookies cookie-name :value])
@@ -78,17 +80,6 @@
 
   )
 
-(defn log-middleware [handler]
-  (fn [req]
-    #_(do
-      (def tlogreq req)
-      (util/log "log-middleware: req:" req))
-    (let [resp (handler req)]
-      #_(do
-        (def tlogresp resp)
-        (util/log "log-middleware: resp:" resp))
-      resp)))
-
 (defn user-id-fn [req]
   (-> req :user :user/id))
 
@@ -102,6 +93,13 @@
   (fn [req]
     (handler
       (assoc req :uri "/index.html"))))
+
+(defrecord WebsocketListener []
+  WSListener
+  (client-added [this _ws user-id]
+    (log/info "User connected" user-id))
+  (client-dropped [this _ws user-id]
+    (log/info "User disconnected" user-id)))
 
 (defn start []
   (util/log "starting server")
@@ -119,16 +117,18 @@
                      wrap-cookies
                      wrap-keyword-params
                      wrap-params
-                     log-middleware
                      (wrap-resource "public")
                      wrap-content-type
                      wrap-not-modified)
-        server (http/run-server middleware {:port 3000})]
+        server (http/run-server middleware {:port 3000})
+        listener (WebsocketListener.)]
+    (add-listener websockets listener)
     (reset! stop-fn
       (fn []
         (fws/stop! websockets)
         (server)))
-    connected-uids))
+    {:connected-uids connected-uids
+     :listener listener}))
 
 (defn stop []
   (when @stop-fn
@@ -138,9 +138,9 @@
 (comment
   ;; start
   (let [connected-uids (start)]
-    (def curr-uids connected-uids))
+    (def networking connected-uids))
   
-  @curr-uids
+  @(:connected-uids networking)
 
   (stop)
 

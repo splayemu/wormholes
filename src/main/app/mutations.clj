@@ -43,7 +43,7 @@
 ;; [x] connection storage
 ;; [x] creating finalized connections
 ;; [x] updating wormhole state to include finalized connections
-;; [ ] pushing connections to other clients
+;; [x] pushing connections to other clients
 ;; [ ] breaking connections
 ;; [ ] pushing broken connections to the client
 
@@ -108,22 +108,43 @@
     (get-in room-table-map [user-id connected-room-id])))
 
 (defn confirm-connection* [room-table-map user-id room-id]
-  (def troom-table-map room-table-map)
-  (def tuser-id user-id)
-  (def troom-id room-id)
-  (let [connected-room-id (:room/id (inspect (get-connected-room room-table-map user-id room-id)))
+  (let [connected-room-id (:room/id (get-connected-room room-table-map user-id room-id))
         connection-waiting?* (connection-waiting?
                                room-table-map
                                [user-id connected-room-id]
                                [user-id room-id])]
-    (if (and (inspect connected-room-id) (inspect connection-waiting?*))
+    (if (and connected-room-id connection-waiting?*)
       (connection->connected room-table-map [user-id room-id] [user-id connected-room-id])
       room-table-map)))
 
+(pc/defmutation confirm-connection
+  [env
+   {:keys [connection/room-id]
+    :as params}]
+  {::pc/sym `confirm-connection
+   }
+  (let [user-id (-> env :user :user/id)]
+    (def tenv env)
+    (log/info "Confirming connection" user-id room-id)
+    (swap! state/room-table confirm-connection* user-id room-id)
+    {:room/id room-id}))
+
+(defn break-connection* [room-table-map user-id room-id]
+  (let [connected-room (get-connected-room room-table-map user-id room-id)
+        disconnect-room #(assoc %
+                           :wormhole/status :wormhole.status/deactive
+                           :wormhole/connection nil)]
+    (-> room-table-map
+     (update-in [user-id room-id] disconnect-room)
+     (update-in [user-id (:room/id connected-room)] disconnect-room))))
+
 (comment
+  (let [connected-room-map (-> two-way-room-map
+                             (confirm-connection* :user-id :room-one))]
+    (break-connection* connected-room-map :user-id :room-one))
 
+  ;; Test two way connection functionality
   (def two-way-room-map
-
     (initialize-two-way-connection
       {:user-id
        {:room-one {:room/id :room-one}
@@ -138,46 +159,13 @@
 
   (confirm-connection* two-way-room-map :user-id :room-one)
 
+  
+
   (get-in @state/room-table ["5dd59ac0-ced9-497e-b67d-2c2d067b9179"])
 
   (swap! state/room-table confirm-connection* "5dd59ac0-ced9-497e-b67d-2c2d067b9179" :room.id/down)
 
   )
-
-(defn broadcast-result [component]
-  (fn [{::pc/keys [mutate] :as mutation}]
-    (assoc mutation
-      ::pc/mutate
-      (fn [env params]
-        (let [res (mutate env params)]
-          (log/info "broadcast-result-mutation" (component) res)
-          res)))))
-
-(comment (:displayName app.components/Room))
-
-(pc/defmutation confirm-connection
-  [env
-   {:keys [connection/room-id]
-    :as params}]
-  {::pc/sym `confirm-connection
-   ;; broadcasts before querying for the room data
-   ::pc/transform (broadcast-result app.components/Room)
-   }
-  (let [user-id (-> env :user :user/id)]
-    (def tenv env)
-    (log/info "Confirming connection" user-id room-id)
-    (swap! state/room-table confirm-connection* user-id room-id)
-    {:room/id room-id}))
-
-
-(comment
-  (user-room-ident->room-ident
-    [:user-room/id ["a6e5d6b6-7e27-4306-82fd-825c1f8ed687" :room.id/down]])
-
-  )
-
-(defn break-connection* [room-table-map user-id room-id]
-  room-table-map)
 
 (comment
   ;; update the wormhole status
@@ -186,36 +174,6 @@
   (get-in @state/room-table ["a6e5d6b6-7e27-4306-82fd-825c1f8ed687" :room.id/down])
 
   (swap! state/room-table break-connection* "5dd59ac0-ced9-497e-b67d-2c2d067b9179" :room.id/down)
-
-  (require '[app.parser])
-
-  ;; how do we pass the query down?
-  ;; perhaps using merge component isn't as good and instead we should just pass the query
-  ;; down as data?
-  ((:parser tenv)
-
-    {:user {:user/id "d546db3a-7bc5-4fda-85e2-daefe73e779f"}}
-   ;;[{[:room/id :room.id/down] [:room/id :wormhole/status]}]
-   
-    [{[:room/id :room.id/starting] [:room/id
-                                    :user-room/id
-                                    :room/items
-                                    {:room/neighbors [:room/id]}
-                                    :wormhole/status
-                                    :wormhole/connected]}]
-   )
-
-  (app.parser/pathom-parser
-   {:user {:user/id :base-state}}
-   [{[:room/id :room.id/down] [:room/id :wormhole/status]}]
-   ;;[{[:room/id :room.id/starting] [:room/id
-   ;;                                :user-room/id
-   ;;                                :room/items
-   ;;                                {:room/neighbors [:room/id]}
-   ;;                                :wormhole/status
-   ;;                                :wormhole/connected]}]
-   )
-
 
   )
 

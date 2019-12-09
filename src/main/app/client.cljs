@@ -22,7 +22,16 @@
          room-id (keyword (str "room.id/" room-id))]
      room-id)))
 
-(defn init! [room-id]
+(defn unload-breaks-connection [app room-id]
+  (fn [_]
+    (js/console.log "meow")
+    (comp/transact! app `[(app.mutations/break-connection
+                            {:connection/room-id ~room-id})])
+    nil))
+
+(defn init! [app room-id]
+  (set! js/window.onbeforeunload (unload-breaks-connection app room-id))
+
   (app/mount! app components/Root "app")
   (df/load! app :user nil {:target (targeting/replace-at [:user])})
   (df/load! app :room-configuration ui/RoomConfiguration {:params {:center-room-id room-id}})
@@ -36,7 +45,7 @@
   (let [room-id (pathname->room-id)]
 
     ;;(js/history.replaceState (clj->js {:page 3}) "title 3" "/meow")
-    (init! room-id)))
+    (init! app room-id)))
 
 (defn ^:export refresh
   "During development, shadow-cljs will call this on every hot reload of source. See shadow-cljs.edn"

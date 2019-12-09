@@ -12,7 +12,40 @@
   {::p/wrap-parser
    (fn [parser]
      (fn [env tx]
-       (parser env tx)))})
+       (parser (assoc env ::broadcast {'app.mutations/initialize-connection true}) tx)))
+   ::p/wrap-read
+   (fn meow-plugin [reader]
+     (fn sorting-plugin [env]
+       (let [res (reader env)]
+         (log/info "wrap-read" res (p/key-dispatch env))
+         res)))
+   ::pc/wrap-resolve
+   (fn [resolve]
+     (fn [env input]
+       (def tresolve-env env)
+       (def tr-dispatch (p/key-dispatch env))
+       (resolve env input)))
+
+   ::p/wrap-mutate
+                                        ; mutation wrappers require a slightly different pattern
+                                        ; as the actual mutation comes on an ':action' key
+   (fn [mutate]
+     (fn [env k params]
+       (def tenv env)
+       (def tk k)
+       (def tparams params)
+       (def tm-dispatch (p/key-dispatch env))
+       ()
+                                        ; inject custom mutation keys, etc here
+       (let [out (mutate env k params)]
+         (cond-> out
+           {:action out}
+           (update :action
+             (fn [action]
+               (fn []
+                 (let [a (action)]
+                   (def ta a)
+                   a))))))))})
 
 (def pathom-parser
   (p/parser {::p/env {::p/reader [p/map-reader

@@ -79,7 +79,7 @@
   [{:keys [room/id] :as params}]
   (action [{:keys [state app]}]
     (js/console.log "clicked" params)
-    (when (inspect (can-close-wormhole? @state id))
+    (when (can-close-wormhole? @state id)
       (let [state-map    (swap! state toggle-room-wormhole id)
             center-room  (get-center-room state-map)
             clicked-room (get-in state-map (room-ident id))]
@@ -91,32 +91,28 @@
                                    :connection/to ~(:room/id clicked-room)})])
           )))))
 
-(defn enter-room-wormhole [state room-id]
-  (let [hover-room-ident (room-ident room-id)
-        {:keys [wormhole/status]} (get-in state hover-room-ident)]
-    (if (can-open-wormhole? state room-id)
-      (assoc-in state (conj hover-room-ident :wormhole/status) :wormhole.status/hover)
-      state)))
+(defn enter-room-wormhole [state-map room-id]
+  (let [hover-room-ident          (room-ident room-id)
+        {:keys [wormhole/status]} (get-in state-map hover-room-ident)]
+    (if (can-open-wormhole? state-map room-id)
+      (assoc-in state-map (conj hover-room-ident :wormhole/status) :wormhole.status/hover)
+      state-map)))
 
-(defn leave-room-wormhole [state room-id]
-  (let [hover-room-ident (room-ident room-id)
-        {:keys [wormhole/status]} (get-in state hover-room-ident)]
+(defn leave-room-wormhole [state-map room-id]
+  (let [hover-room-ident          (room-ident room-id)
+        {:keys [wormhole/status]} (get-in state-map hover-room-ident)]
     (if (= status :wormhole.status/hover)
-      (assoc-in state (conj hover-room-ident :wormhole/status) :wormhole.status/deactive)
-      state)))
+      (assoc-in state-map (conj hover-room-ident :wormhole/status) :wormhole.status/deactive)
+      state-map)))
 
 (defmutation mouse-enter-wormhole
-  "Mutation: "
   [{:keys [room/id] :as params}]
   (action [{:keys [state]}]
-    (js/console.log "mouseon" params)
     (swap! state enter-room-wormhole id)))
 
 (defmutation mouse-leave-wormhole
-  "Mutation: "
   [{:keys [room/id] :as params}]
   (action [{:keys [state]}]
-    (js/console.log "mouseoff" params)
     (swap! state leave-room-wormhole id)))
 
 
@@ -132,6 +128,10 @@
   [{:keys [connection/room-id] :as params}]
   (action [{:keys [state]}]
     (js/console.log "confirm-connection" params))
+  (remote [env] true))
+
+(defmutation break-connection
+  [{:keys [connection/room-id] :as params}]
   (remote [env] true))
 
 (defmutation merge-push
