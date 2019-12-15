@@ -101,6 +101,7 @@
     (log/info "User disconnected" user-id)))
 
 (def stop-server-backup (atom nil))
+(def websocket-cheating (atom nil))
 (defn start-server! [component & [stop-server-atom]]
   (util/log "starting server")
   (let [websockets (fws/start! (fws/make-websockets
@@ -127,6 +128,8 @@
                     (server))]
       (when stop-server-atom
         (reset! stop-server-atom stop))
+      (when websocket-cheating
+        (reset! websocket-cheating websockets))
       (-> component
         (assoc :stop-fn stop)
         (assoc :websockets websockets)))))

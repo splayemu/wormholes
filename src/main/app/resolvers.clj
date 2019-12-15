@@ -59,7 +59,8 @@
                 {:room/neighbors [:room/id]}
                 :wormhole/status
                 :wormhole/connected]
-   ::pc/transform (broadcast-result (fn [res] [:room/by-id (:room/id res)]))}
+   ;;::pc/transform (broadcast-result (fn [res] [:room/by-id (:room/id res)]))
+   }
   (do 
     (util/log "room-resolver" user-room-id)
     (get-in @state/room-table user-room-id)))
