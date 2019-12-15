@@ -6,6 +6,7 @@
    [org.httpkit.server :as http]
    [compojure.core :refer :all]
    [compojure.route :as route]
+   [com.stuartsierra.component :as component]
    [taoensso.sente.server-adapters.http-kit      :refer (get-sch-adapter)]
    [com.fulcrologic.fulcro.networking.websockets :as fws]
    [com.fulcrologic.fulcro.server.api-middleware :as server]
@@ -83,8 +84,6 @@
 (defn user-id-fn [req]
   (-> req :user :user/id))
 
-(defonce stop-fn (atom nil))
-
 (defroutes app
   (route/resources "/")
   (route/not-found "Not Found"))
@@ -101,7 +100,8 @@
   (client-dropped [this _ws user-id]
     (log/info "User disconnected" user-id)))
 
-(defn start []
+(def stop-server-backup (atom nil))
+(defn start-server! [component & [stop-server-atom]]
   (util/log "starting server")
   (let [websockets (fws/start! (fws/make-websockets
                                  api-parser
@@ -109,7 +109,6 @@
                                   :sente-options {:csrf-token-fn nil
                                                   :user-id-fn user-id-fn}
                                   :parser-accepts-env? true}))
-        connected-uids (:connected-uids websockets)
         middleware (-> app
                      always-index
                      (fws/wrap-api websockets)
@@ -123,26 +122,22 @@
         server (http/run-server middleware {:port 3000})
         listener (WebsocketListener.)]
     (add-listener websockets listener)
-    (reset! stop-fn
-      (fn []
-        (fws/stop! websockets)
-        (server)))
-    {:connected-uids connected-uids
-     :listener listener}))
+    (let [stop (fn stop-fn []
+                    (fws/stop! websockets)
+                    (server))]
+      (when stop-server-atom
+        (reset! stop-server-atom stop))
+      (-> component
+        (assoc :stop-fn stop)
+        (assoc :websockets websockets)))))
 
-(defn stop []
-  (when @stop-fn
-    (@stop-fn)
-    (reset! stop-fn nil)))
-
-(comment
-  ;; start
-  (let [connected-uids (start)]
-    (def networking connected-uids))
-  
-  @(:connected-uids networking)
-
-  (stop)
-
-
-  )
+(defrecord Server [stop-fn websockets]
+  component/Lifecycle
+  (start [component]
+    (start-server! component stop-server-backup))
+  (stop [component]
+    (let [stop-fn (:stop-fn component)]
+      (if stop-fn
+        (stop-fn)
+        (log/info "stop-fn is nil. Server is lost."))
+      component)))

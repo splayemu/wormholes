@@ -14,4 +14,6 @@
                                com.fulcrologic/fulcro-websockets {:mvn/version "3.0.4"}
                                com.taoensso/sente                {:mvn/version "1.14.0-RC2"}
                                compojure                         {:mvn/version "1.6.1"}
+
+                               com.stuartsierra/component        {:mvn/version "0.4.0"}
                                }}}}

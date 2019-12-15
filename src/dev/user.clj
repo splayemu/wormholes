@@ -5,25 +5,21 @@
 
 (set-refresh-dirs "src/dev" "src/main")
 
-(defn start []
-  (server/start))
+;;(defn start []
+;;  (server/start!))
+;;
+;;(defn restart
+;;  "Stop the server, reload all source code, then restart the server."
+;;  []
+;;  (server/stop!)
+;;  (refresh :after 'user/start!))
 
-(defn restart
-  "Stop the server, reload all source code, then restart the server."
-  []
-  (server/stop)
-  (refresh :after 'user/start))
-
-(comment
+#_(comment
   ;; when compile errors run
   (tools-ns/refresh)
   (start)
 
   )
 
-(comment
-  (start)
-  (restart)
 
-  )
 
