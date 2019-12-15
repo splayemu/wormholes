@@ -75,7 +75,7 @@
         data     {ident result}]
     (if (nil-ident? ident)
       (log/info user-id "Unable to broadcast to nil ident:" ident)
-      (do 
+      (do
         (log/info user-id "Broadcasting to ident:" ident)
         (push-merge-query websockets user-id query data)))))
 
@@ -89,39 +89,34 @@
         (recur (<! input-ch))))
     input-ch))
 
-(comment
-  (let [ws      @server/websocket-cheating
-        user-id "5c6342f6-1925-4735-b0e6-6ca64c8cacf3"]
-    (query+push parser/api-parser ws user-id [:user-room/id [user-id :room.id/starting]]))
+(defonce broadcast-input-ch (atom nil))
 
-  (def broadcast-ch
-    (let [ws @server/websocket-cheating]
-      (entity-broadcaster parser/api-parser ws)))
-
-  (def broadcast-ch nil)
-
-  (let [user-id "5c6342f6-1925-4735-b0e6-6ca64c8cacf3"]
-    (async/put! broadcast-ch
-      {:user-id         user-id
-       :ident [:user-room/id [user-id :room.id/starting]]}))
-
-  )
+(defn broadcast! [user-id ident]
+  (if @broadcast-input-ch
+    (async/put! @broadcast-input-ch
+      {:user-id user-id
+       :ident   ident})
+    :broadcaster-down))
 
 (defrecord Broadcaster [server input-ch]
   component/Lifecycle
   (start [component]
     (log/info "starting Broadcaster")
     (let [broadcast-ch (entity-broadcaster parser/api-parser (:websockets server))]
+      (reset! broadcast-input-ch broadcast-ch)
       (assoc component :input-ch broadcast-ch)))
   (stop [component]
     (log/info "stopping Broadcaster")
     (let [input-ch (:input-ch component)]
-      (async/close! input-ch)
+      (reset! broadcast-input-ch nil)
+      (when input-ch (async/close! input-ch))
       (assoc component :input-ch nil))))
 
-(comment 
+(comment
 
-  
-  
+  (let [user-id "6500ba9f-b936-4772-b79c-748edcf739fc"
+        ident [:user-room/id [user-id :room.id/starting]]]
+    (broadcast! user-id ident ))
+
+
   )
-
