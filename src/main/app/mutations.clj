@@ -35,7 +35,7 @@
 ;; How are we going to tie a sente "end event" to a specific connection?
 ;;   Can we add the pathom env above the sente layer?
 ;; How are we going to trigger a backend pathom mutation?
-;; 
+;;
 ;;
 
 ;; TODO:
@@ -159,7 +159,7 @@
 
   (confirm-connection* two-way-room-map :user-id :room-one)
 
-  
+
 
   (get-in @state/room-table ["5dd59ac0-ced9-497e-b67d-2c2d067b9179"])
 
@@ -173,7 +173,7 @@
 
   (get-in @state/room-table ["a6e5d6b6-7e27-4306-82fd-825c1f8ed687" :room.id/down])
 
-  (swap! state/room-table break-connection* "5dd59ac0-ced9-497e-b67d-2c2d067b9179" :room.id/down)
+  (swap! state/room-table break-connection* "6ac96571-6009-42af-a3da-4f94b406daca" :room.id/down)
 
   )
 

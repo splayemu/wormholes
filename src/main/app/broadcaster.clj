@@ -9,34 +9,8 @@
    [app.server :as server]
    [app.components :as components]
    [app.state :as state]
-   [app.mutations :as api]))
-
-(defrecord Watchers [broadcaster]
-  component/Lifecycle
-  (start [component]
-    component)
-  (stop [component]
-    component))
-
-;; create watchers
-(defn add-watchers []
-  (add-watch state/room-table :room-watcher
-    (fn [key_ atom_ old-state new-state]
-      (log/info "change" key_ old-state new-state))))
-
-;; we are going to requery the data in order to make it UI friendly regardless
-;; all we need are rooms changed by user
-;; changes mean that either the new or old is missing front two level keys
-
-(data/diff {:user-id {:room/one {:a 1}}} {:user-id {:room/one {:a 1}
-                                                    :room/two {}}})
-;; map changes to entity
-(defn change->entity [] nil)
-;; query entity
-;; send entity
-
-{:ident [:room/id :room.id/starting]
- :user :user-id}
+   [app.mutations :as api]
+   [clojure.walk :as walk]))
 
 (defn query-component [parser component query-ident]
   (let [query       (comp/get-query component)
@@ -79,6 +53,10 @@
         (log/info user-id "Broadcasting to ident:" ident)
         (push-merge-query websockets user-id query data)))))
 
+;; validate the message
+{:ident [:room/id :room.id/starting]
+ :user :user-id}
+
 (defn entity-broadcaster
   "Builds the go loop that accepts messages, queries for entities, and broadcasts them."
   [pathom-parser websockets]
@@ -96,7 +74,7 @@
     (async/put! @broadcast-input-ch
       {:user-id user-id
        :ident   ident})
-    :broadcaster-down))
+    :error-broadcaster-down))
 
 (defrecord Broadcaster [server input-ch]
   component/Lifecycle
@@ -120,3 +98,74 @@
 
 
   )
+
+
+;; create watchers
+(require '[clojure.walk :as walk])
+
+(defn nested-coll? [c]
+  (and (coll? c) (coll? (first c))))
+
+(defn create-path [k v]
+  (if (nested-coll? v)
+    (->> v
+      (map #(into [k] %))
+      (into []))
+    [[k]]))
+
+(create-path :a [:c])
+
+(let [k :a
+      v [[:b]
+         [:c]]]
+  (create-path k v))
+
+(let [k :a
+      v [[:b]
+         [:c]]]
+  (create-path k v))
+
+
+(defn key-paths
+  "Returns a sequence of all the paths of keys in the nested dictionaries."
+  [c]
+  (walk/postwalk
+    (fn [n]
+      (if (map? n)
+        (->> (keys n)
+          (map (fn [k]
+                 (let [v (get n k)]
+                   (create-path k v))))
+          (mapcat identity))
+        n))
+    c))
+
+(defn state-change-paths [old-state new-state]
+  (let [[old new _] (data/diff old-state new-state)]
+    (concat (key-paths new) (key-paths old))))
+
+(defn add-change-path-watcher [atom name doer]
+  (log/info "watching" name "for change paths")
+  (add-watch atom name
+    (fn [key_ atom_ old-state new-state]
+      (-> (state-change-paths old-state new-state)
+        doer))))
+
+(defrecord Changes [broadcaster]
+  component/Lifecycle
+  (start [component]
+    (add-change-path-watcher state/room-table :room-watcher
+      (fn [change-paths]
+        (let [state-change-idents (->> change-paths
+                                    (map #(take 2 %))
+                                    distinct
+                                    (into []))]
+          (log/info "change" state-change-idents)
+          (doseq [ident state-change-idents]
+            (broadcast! (first ident) [:user-room/id (into [] ident)])))))
+    (log/info "Starting Changes")
+    component)
+  (stop [component]
+    (remove-watch state/room-table :room-watcher)
+    (log/info "Stopping Changes")
+    component))

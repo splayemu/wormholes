@@ -18,7 +18,10 @@
                      :server (server/map->Server {})
                      :broadcaster (component/using
                                     (broadcaster/map->Broadcaster {})
-                                    [:server])))
+                                    [:server])
+                     :changes (component/using
+                                (broadcaster/map->Changes {})
+                                [:broadcaster])))
 
     (swap! system component/start)
     system))
@@ -32,4 +35,3 @@
   (swap! system component/stop)
 
          )
-

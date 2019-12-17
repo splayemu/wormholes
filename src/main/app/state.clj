@@ -135,7 +135,8 @@
 
   (reset-state!)
 
-  (add-user! 1)
+  (add-user! :test-user)
+  (add-user! :test-mow)
 
   (remove-user! 1)
 
@@ -144,6 +145,3 @@
   (add-room :base-state down-room)
 
   )
-
-
-
