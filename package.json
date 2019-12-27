@@ -9,6 +9,7 @@
   "author": "Spencer Apple (http://spencerapple.com/)",
   "license": "ISC",
   "dependencies": {
+    "augmented-ui": "^1.1.0",
     "react": "^16.10.2",
     "react-dom": "^16.10.2"
   }
