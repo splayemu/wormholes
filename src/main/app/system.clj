@@ -2,6 +2,7 @@
   (:require
    [app.server :as server]
    [app.broadcaster :as broadcaster]
+   [app.timer-loop :as timer-loop]
    [com.stuartsierra.component :as component]))
 
 (defonce system (atom nil))
@@ -21,7 +22,8 @@
                                     [:server])
                      :changes (component/using
                                 (broadcaster/map->Changes {})
-                                [:broadcaster])))
+                                [:broadcaster])
+                     :timer-loop (timer-loop/map->TimerLoop {:tick-length-ms 1000})))
 
     (swap! system component/start)
     system))
