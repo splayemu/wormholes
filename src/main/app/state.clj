@@ -1,5 +1,6 @@
 (ns app.state
   (:require
+   [taoensso.timbre :as log]
    [app.util :as util :refer [inspect]]))
 
 ;; wormhole.status
@@ -108,13 +109,15 @@
   (swap! room-table assoc user-id (:base-state initial-room-table-with-neighbors)))
 
 (defn add-user!
-  "Add the user and create initial state."
+  "Add the user and create initial state if the user doesn't exist already."
   [id]
-  (let [user {:user/id id
-              :user/last-message-at (now)}]
-    (swap! user-table assoc id user)
-    (set-rooms! id)
-    user))
+  (when (not (get @user-table id))
+    (log/info "adding user" id)
+    (let [user {:user/id id
+                :user/last-message-at (now)}]
+      (swap! user-table assoc id user)
+      (set-rooms! id)
+      user)))
 
 (defn remove-user!
   [id]
@@ -124,7 +127,7 @@
 
 (defn reset-state! []
   (reset! user-table {})
-  (reset! room-table initial-room-table)
+  (reset! room-table initial-room-table-with-neighbors)
   :ok)
 
 (comment

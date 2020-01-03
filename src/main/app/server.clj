@@ -25,55 +25,43 @@
 (def cookie-name "user_id")
 (def cookie-path [:cookies cookie-name :value])
 
-(defn create-cookie [{:keys [user/id]}]
-  {:value id 
+(defn create-cookie [cookie-id]
+  {:value cookie-id
    ;;:max-age   (str (* 60 60 365))
    ;;:http-only true
    })
 
-(defn create-user! []
-  (let [user-id (str (java.util.UUID/randomUUID))]
-    ;; probably should create a db namespace
-    (state/add-user! user-id)))
-
-;; TODO
-;; we should change this to return the immutable base state
-;; until they make a change, then we create the user state
-
-;; if no cookie exists on the req chain
-;; create a userid
-;; insert into the database the user
-;; and return the cookie with the user id
 (defn user-middleware [handler]
   (fn [req]
-    (util/log "user-middleware: req")
-    (let [cookie       (get-in req cookie-path)
+    (let [cookie-id       (get-in req cookie-path)
+          new-cookie?     (not (boolean cookie-id))
+          cookie-id       (or cookie-id (str (java.util.UUID/randomUUID)))
+
+          ;; if there is no cookie
+          ;;   create an append a cookie and create a user
+          ;; if there is no user but there is a cookie
+          ;;   create the user map for the request / resp
+          ;; if there is a user
+          ;;   look it up an add
+
           ;; user/id is the same as the cookie
-          user         (get @state/user-table cookie)
-          ;; create the user if the user doesn't exist
-          create-user? (nil? user)
-          user         (if create-user?
-                         (create-user!)
-                         user)]
+          _ (log/info "user-middleware" cookie-id)
+          user         {:user/id cookie-id}]
       (try
         ;; pass down the user on the request context
         (let [resp (handler (assoc req :user user))]
-          (if create-user?
-            (let [cookie {cookie-name (create-cookie user)}]
+          (if new-cookie?
+            (let [cookie {cookie-name (create-cookie cookie-id)}]
               (update resp :cookies merge cookie))
             resp))
         (catch Throwable e
-          (util/log "user-middleware: Exception:" e)
-          (util/log "user-middleware: Removing user state")
-          (state/remove-user! (:user/id user))
-          ;; for some reason this isn't returning to the client
+          (log/error "user-middleware: Exception:" e)
           {:status  500
            :headers {"Content-Type" "text/plain"}
            :body    "Server Error"})))))
 
 (comment
   (create-cookie {:user/id "meow"})
-  (create- cookie (create-user!))
 
   (let [user tuser
         resp tresp]

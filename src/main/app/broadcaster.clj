@@ -12,9 +12,10 @@
    [app.mutations :as api]
    [clojure.walk :as walk]))
 
-(defn query-component [parser component query-ident]
+(defn query-component [parser component user-id query-ident]
   (let [query       (comp/get-query component)
-        result      (-> (parser {} [{query-ident query}])
+        result      (-> (parser {:user {:user/id user-id}}
+                          [{query-ident query}])
                       first
                       val)]
     result))
@@ -23,7 +24,8 @@
   (query-component
     parser/api-parser
     components/Room
-    [:user-room/id [:base-state :room.id/starting]])
+    :base-state
+    [:room/id :room.id/starting])
 
   )
 
@@ -43,7 +45,7 @@
 
 (defn query+push [pathom-parser websockets user-id ident]
   (let [query    (comp/get-query components/Room)
-        result   (query-component pathom-parser components/Room ident)
+        result   (query-component pathom-parser components/Room user-id ident)
         ident-fn (fn [res] [:room/by-id (:room/id res)])
         ident    (ident-fn result)
         data     {ident result}]
@@ -92,8 +94,8 @@
 
 (comment
 
-  (let [user-id "6500ba9f-b936-4772-b79c-748edcf739fc"
-        ident [:user-room/id [user-id :room.id/starting]]]
+  (let [user-id "451d9259-a521-4904-8823-bc55e55b512d"
+        ident [:room/id :room.id/starting]]
     (broadcast! user-id ident ))
 
 
@@ -161,8 +163,8 @@
                                     distinct
                                     (into []))]
           (log/info "change" state-change-idents)
-          (doseq [ident state-change-idents]
-            (broadcast! (first ident) [:user-room/id (into [] ident)])))))
+          (doseq [[user-id room-id] state-change-idents]
+            (broadcast! user-id [:room/id room-id])))))
     (log/info "Starting Changes")
     component)
   (stop [component]

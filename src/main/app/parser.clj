@@ -1,5 +1,6 @@
 (ns app.parser
   (:require
+   [app.state :as state]
    [app.resolvers]
    [app.mutations]
    [com.wsscode.pathom.core :as p]
@@ -47,6 +48,33 @@
                    (def ta a)
                    a))))))))})
 
+(defn static-user-plugin [{:keys [static-user?]}]
+  {::pc/wrap-resolve
+   (fn [resolve]
+     (fn static-user-resolver [{:keys [user] :as env} params]
+       ;; TODO this is coming as nil and I dont know why
+       (log/info "calling static-client" user)
+       (def tenv env)
+       (let [env            (if (static-user? user)
+                              (assoc-in env [:user :user/id] :base-state)
+                              env)
+             server-result (resolve env params)]
+         (def tres server-result)
+         server-result)))
+
+   ::p/wrap-mutate
+   (fn [mutate]
+     (fn [{:keys [user] :as env} k params]
+       (let [out (mutate env k params)]
+         (cond-> out
+           {:action out}
+           (update :action
+             (fn [action]
+               (fn []
+                 ;; if the user doesn't exist, make it exist
+                 (state/add-user! (:user/id user))
+                 (action))))))))})
+
 (def pathom-parser
   (p/parser {::p/env {::p/reader [p/map-reader
                                   pc/reader2
@@ -59,7 +87,13 @@
              ::p/mutate pc/mutate
              ::p/plugins [(pc/connect-plugin {::pc/register resolvers})
                           p/error-handler-plugin
-                          sample-plugin]}))
+                          (static-user-plugin
+                            {:static-user?
+                             (fn [user] (not (get @state/user-table (:user/id user))))})
+                          ;;sample-plugin
+                          ]}))
+
+
 
 (defn api-parser
   ([query] (pathom-parser {} query))
@@ -78,8 +112,10 @@
     [:user/id
      {[:room/id :room.id/starting] [:room/id :room/items :wormhole/status :wormhole/connected]}])
 
-  (api-parser {:request {:user {:user/id :base-state}}}
-    [{[:room/id :room.id/starting] [:user-room/id :wormhole/status]}
+
+  ;; the question is does the query still join with the result?
+  (api-parser {:request {:user {:user/id :meow :user/state :user.state/static}}}
+    [{[:room/id :room.id/starting] [:room/id :wormhole/status]}
      :user])
 
   ;; turn this into a test
@@ -143,10 +179,8 @@
           :user-room/id
           :room/items
           :wormhole/status
-          :wormhole/connected]}]} 
+          :wormhole/connected]}]}
       {:center-room-id :room.id/down})])
 
 
   )
-
-

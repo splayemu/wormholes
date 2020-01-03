@@ -85,8 +85,7 @@
   {::pc/sym `initialize-connection}
   (let [user-id (-> env :user :user/id)]
     (log/info "Initializing connection" from " to " to)
-    (swap! state/room-table initialize-two-way-connection user-id params)
-    {:room/id to}))
+    (swap! state/room-table initialize-two-way-connection user-id params)))
 
 (defn connection-waiting? [room-table-map room-ident-from room-ident-to]
   (let [room-from (get-in room-table-map room-ident-from)
@@ -126,8 +125,7 @@
   (let [user-id (-> env :user :user/id)]
     (def tenv env)
     (log/info "Confirming connection" user-id room-id)
-    (swap! state/room-table confirm-connection* user-id room-id)
-    {:room/id room-id}))
+    (swap! state/room-table confirm-connection* user-id room-id)))
 
 (defn break-connection* [room-table-map user-id room-id]
   (let [connected-room (get-connected-room room-table-map user-id room-id)

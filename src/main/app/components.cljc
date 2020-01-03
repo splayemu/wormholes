@@ -93,7 +93,7 @@
                      :id "spiral"}
              (dom/g {:classes path-classes}
                (dom/path :.wormhole-rotating-animation {:d spiral-path})))]
-       (dom/div 
+       (dom/div
          (if openable-wormhole?
            ;; should point to the new one clicked on
            (dom/a :.spiral-wrapper {:href (str "/" (name id)) :target "_blank"}
@@ -161,7 +161,6 @@
              {:keys [basic-style wormhole-opened room-unaccessible]
               :as css}]
   {:query [:room/id
-           :user-room/id
            :room/items
            :room/unaccessible?
            :wormhole/status
@@ -211,11 +210,11 @@
            (dom/div {:style {:display "flex"
                              :justify-content "space-between"}}
              (dom/div :.left.column)
-             (dom/div :.mid.column 
+             (dom/div :.mid.column
                (dom/div {:style {:text-align "center"}}
                  (name id))
                (ui-wormhole (comp/computed props (merge computed mouse-events))))
-             (dom/div :.right.column 
+             (dom/div :.right.column
                (when items
                  (dom/div :.items
                    (dom/ul
@@ -280,9 +279,8 @@
    ;;:css [[:.space {:background "black"}]]
    }
   #?(:cljs
-     (dom/div 
+     (dom/div
        (inj/style-element {:component Root
                            ;; doesn't seem to be needed right now
                            :garden-flags {:vendors [#_"webkit"]}})
        (ui-room-configuration (inspect room-configuration)))))
-

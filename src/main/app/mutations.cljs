@@ -115,7 +115,6 @@
   (action [{:keys [state]}]
     (swap! state leave-room-wormhole id)))
 
-
 ;; Connection mutations
 (defmutation initialize-connection
   [{:keys [connection/from
