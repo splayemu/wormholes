@@ -142,5 +142,9 @@
     (let [stop-fn (:stop-fn component)]
       (if stop-fn
         (stop-fn)
-        (log/info "stop-fn is nil. Server is lost."))
+        (if @stop-server-backup
+          (do
+            (log/info "stop-fn is nil but stopping with backup stop atom.")
+            (@stop-server-backup))
+          (log/info "stop-fn is nil. backup stop atom is nil. server is lost.")))
       component)))
