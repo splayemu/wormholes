@@ -1,6 +1,6 @@
 (ns app.timer-loop
   (:require
-   [clojure.core.async :as async :refer [go go-loop <! timeout]]
+   [clojure.core.async :as async :refer [go go-loop <! timeout alts!]]
    [clojure.data :as data]
    [com.stuartsierra.component :as component]
    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
@@ -21,18 +21,24 @@
 
 ;; for each timer, decrement
 ;; if any of the timers are zero, remove
-(let [timer-state {:ticks [{:amount 5
-                            :callbacks [:b]}
-                           {:amount 4
-                            :callbacks [:b]}]}]
-  (decrement-timers timer-state))
+(comment
+  (let [timer-state {:ticks [{:amount 5
+                             :callbacks [:b]}
+                            {:amount 4
+                             :callbacks [:b]}]}]
+    (decrement-timers timer-state))
 
+  )
+
+;; must return a vector for ticks as update-in doesn't work on lists
 (defn pop-callbacks [timer-state]
   (let [active-callbacks (->> (:ticks timer-state)
                            (filter #(<= (:amount %) 0))
                            (mapcat :callbacks)
                            concat)
-        filtered-ticks (remove #(<= (:amount %) 0) (:ticks timer-state))]
+        filtered-ticks (->> (:ticks timer-state)
+                         (remove #(<= (:amount %) 0))
+                         (into []))]
     (-> timer-state
       (update :active-callbacks concat active-callbacks)
       (assoc :ticks filtered-ticks))))
@@ -53,50 +59,63 @@
 
   )
 
-(defonce active-timer? (atom true))
+(defn process-tick!
+  "Advances the ticks of callback-timer-atom and invokes the stored callbacks."
+  [callback-timer-atom]
+  (let [timer-state (swap! callback-timer-atom #(-> %
+                                                  decrement-timers
+                                                  pop-callbacks))
+        active-callbacks (:active-callbacks timer-state)]
+    (swap! callback-timer-atom assoc :active-callbacks [])
+    (doseq [callback active-callbacks]
+      (try
+        (callback)
+        (catch Throwable t
+          (log/error "callback-timer" {:error t}))))))
 
+(defonce callback-timer-kill-ch (atom nil))
 (defn callback-timer
+  "Builds the go loop that processes one tick each tick-length-ms.
+
+  The timer loop is running constantly so if callbacks are added halfway through
+  a tick, those callbacks won't wait for the full duration of that tick.
+
+  Shut it down by calling `kill-callback-timer!`."
   [tick-length-ms]
   (log/info "started callback-timer loop")
-  (go-loop []
-    (if @active-timer?
-      (do
-        (<! (timeout tick-length-ms))
-        (let [timer-state (swap! timed-callbacks
-                            #(-> %
-                               decrement-timers
-                               pop-callbacks))
-              active-callbacks (:active-callbacks timer-state)]
-          (swap! timed-callbacks assoc :active-callbacks [])
-          (log/info "callback-timer" {:active-callbacks-count (count active-callbacks)})
-          (doseq [callback active-callbacks]
-            (try
-              (callback)
-              (catch Throwable t
-                (log/error "callback-timer" {:error t})))))
-        (recur))
-      (log/info "stopped callback-timer loop"))))
+  (let [kill-ch (async/chan)]
+    (go-loop []
+      (let [timeout-ch (timeout tick-length-ms)
+            [val ch] (alts! [timeout-ch kill-ch])]
+        (if (= ch timeout-ch)
+          (do
+            (process-tick! timed-callbacks)
+            (recur))
+          (log/info "stopped callback-timer loop"))))
+    (reset! callback-timer-kill-ch kill-ch)))
+
+(defn kill-callback-timer! []
+  (when @callback-timer-kill-ch
+    (async/put! @callback-timer-kill-ch :die)
+    (reset! callback-timer-kill-ch nil)))
 
 (comment
-
-  (reset! active-timer? false)
-
-  (do
-    (reset! active-timer? true)
+  (def kill-ch
     (callback-timer 1000))
 
   )
 
-(defn add-timed-callback [timer-state amount callback]
-  (let [index (->>
-                (:ticks timer-state)
-                (map-indexed (fn [i e]
-                                  (when (= (:amount e) amount)
-                                    i)))
-                (keep identity)
-                first)]
-    (if index
-      (update-in timer-state [:ticks index :callbacks] conj callback)
+(defn add-timed-callback
+  "Updates a timer-state map to include a callback indexed by a number of ticks."
+  [timer-state amount callback]
+  (let [tick-index (->> (:ticks timer-state)
+                     (map-indexed (fn [i e]
+                                    (when (= (:amount e) amount)
+                                      i)))
+                     (keep identity)
+                     first)]
+    (if tick-index
+      (update-in timer-state [:ticks tick-index :callbacks] conj callback)
       (update timer-state :ticks conj {:amount amount
                                        :callbacks [callback]}))))
 
@@ -112,6 +131,12 @@
     (-> (add-timed-callback timer-state amount callback)
       (add-timed-callback amount callback)))
 
+  (let [timer-state {:ticks []}
+        callback :c
+        amount 3]
+    (-> (add-timed-callback timer-state amount callback)
+      (add-timed-callback amount callback)))
+
   (let [timer-state {:ticks [{:amount 5
                               :callbacks [:b]}]}
         callback :c
@@ -120,14 +145,8 @@
 
   )
 
-;; two loops
-;; one for adding things to the loop
-;; one for the timers
-
-;; for now will use an atom w/ vector, but should update to be
-;; some java queue most likely
 (defn callback-input
-  "Builds the go loop that runs on a timer"
+  "Builds the go loop that adds input to the callback-timer."
   []
   (let [input-ch (async/chan)]
     (log/info "started callback-input loop")
@@ -135,7 +154,7 @@
       (if (nil? message)
         (log/info "stopped callback-input loop")
         (let [{:keys [ticks callback]} message]
-          (log/info "callback-input message" message (type callback))
+          (log/info "callback-input message" message)
           (try
             (swap! timed-callbacks add-timed-callback ticks callback)
             (catch Throwable t
@@ -145,7 +164,9 @@
 
 (defonce callback-input-ch (atom nil))
 
-(defn update-after-ticks! [ticks callback]
+(defn callback-after-ticks-ticks!
+  "After waiting the number of ticks, asynchronously run callback."
+  [ticks callback]
   (if @callback-input-ch
     (async/put! @callback-input-ch
       {:ticks    ticks
@@ -157,24 +178,25 @@
 
   ;; hmm for some reason this throws an error
   (do
-    (update-after-ticks! 1 #(do (log/info "hehe")))
-    (update-after-ticks! 1 #(do (log/info "hhp"))))
+    (callback-after-ticks-ticks! 1 #(do (log/info "hehe")))
+    (callback-after-ticks-ticks! 1 #(do (log/info "hhp"))))
 
   )
 
-(defrecord Timer [input-ch tick-length-ms]
+(defrecord TimerLoop [tick-length-ms input-ch callback-timer-kill-ch]
   component/Lifecycle
   (start [component]
     (log/info "starting Timer")
-    (reset! active-timer? true)
-    (callback-timer tick-length-ms)
-    (let [callback-input-ch* (callback-input)]
+    (let [callback-input-ch* (callback-input)
+          callback-timer-kill-ch (callback-timer tick-length-ms)]
       (reset! callback-input-ch callback-input-ch*)
-      (assoc component :input-ch callback-input-ch*)))
+      (-> component
+        (assoc :callback-timer-kill-ch callback-timer-kill-ch)
+        (assoc :input-ch callback-input-ch*))))
   (stop [component]
     (log/info "stopping Timer")
-    (reset! active-timer? false)
     (let [input-ch (:input-ch component)]
       (reset! callback-input-ch nil)
+      (kill-callback-timer!)
       (when input-ch (async/close! input-ch))
-      (assoc component :input-ch nil))))
+      (assoc component :input-ch nil :callback-timer-kill-ch nil))))
