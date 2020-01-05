@@ -82,7 +82,7 @@
   component/Lifecycle
   (start [component]
     (log/info "starting Broadcaster")
-    (let [broadcast-ch (entity-broadcaster parser/api-parser (:websockets server))]
+    (let [broadcast-ch (entity-broadcaster parser/pathom-parser (:websockets server))]
       (reset! broadcast-input-ch broadcast-ch)
       (assoc component :input-ch broadcast-ch)))
   (stop [component]

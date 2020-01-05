@@ -21,22 +21,13 @@
          room-id (keyword (str "room.id/" room-id))]
      room-id)))
 
-(defn unload-breaks-connection [app room-id]
-  (fn [_]
-    (js/console.log "meow")
-    (comp/transact! app `[(app.mutations/break-connection
-                            {:connection/room-id ~room-id})])
-    nil))
-
 (defn init! [app room-id]
-  (set! js/window.onbeforeunload (unload-breaks-connection app room-id))
-
   (app/mount! app components/Root "app")
   (df/load! app :user nil {:target (targeting/replace-at [:user])})
   (df/load! app :room-configuration components/RoomConfiguration {:params {:center-room-id room-id}})
   (js/console.log "Loaded")
-  (comp/transact! app `[(app.mutations/confirm-connection
-                          {:connection/room-id ~room-id})]))
+  (comp/transact! app `[(app.mutations/initialize-connection
+                          {:connection/from ~room-id})]))
 
 (defn ^:export init
   "Shadow-cljs sets this up to be our entry-point function. See shadow-cljs.edn `:init-fn` in the modules of the main build."
@@ -56,8 +47,8 @@
 
 
 (defn asdf [room-id]
-  (comp/transact! app `[(app.mutations/confirm-connection
-                          {:connection/room-id ~room-id})]))
+  (comp/transact! app `[(app.mutations/initialize-connection
+                          {:connection/from ~room-id})]))
 
 (comment
   (asdf (pathname->room-id))

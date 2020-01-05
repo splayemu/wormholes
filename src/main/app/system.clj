@@ -1,5 +1,6 @@
 (ns app.system
   (:require
+   [app.state :as state]
    [app.server :as server]
    [app.broadcaster :as broadcaster]
    [app.timer-loop :as timer-loop]
@@ -30,6 +31,8 @@
 
 (comment
   (start-system! system)
+
+  (state/reset-state!)
 
   @system
 

@@ -5,7 +5,6 @@
 
 ;; wormhole.status
 #{:wormhole.status/active
-  :wormhole.status/opened
   :wormhole.status/deactive
   :wormhole.status/connecting
   :wormhole.status/connected
@@ -137,6 +136,8 @@
   (count (keys @room-table))
 
   (reset-state!)
+
+  (get-in @room-table ["451d9259-a521-4904-8823-bc55e55b512d"])
 
   (add-user! :test-user)
   (add-user! :test-mow)

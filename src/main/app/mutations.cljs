@@ -123,16 +123,6 @@
     (js/console.log "initialze-connection" params))
   (remote [env] true))
 
-(defmutation confirm-connection
-  [{:keys [connection/room-id] :as params}]
-  (action [{:keys [state]}]
-    (js/console.log "confirm-connection" params))
-  (remote [env] true))
-
-(defmutation break-connection
-  [{:keys [connection/room-id] :as params}]
-  (remote [env] true))
-
 (defmutation merge-push
   [{:keys [merge/query merge/data]}]
   (action [{:keys [state]}]
