@@ -2,6 +2,7 @@
   (:require
    [app.util :as util :refer [inspect]]
    [app.state :as state]
+   [app.timer-loop :as timer-loop]
    [com.wsscode.pathom.connect :as pc]
    [com.fulcrologic.fulcro.components :as comp]
    [taoensso.timbre :as log]))
@@ -12,22 +13,6 @@
 
 (defn room-ident [id]
   [:room/by-id id])
-
-;; Properties of a connection
-;; unconnected
-;;   (hover)
-;; connecting
-;; between two rooms
-;; persists until one of the two browser tabs closes
-
-;; TODO:
-;; [x] flesh out a connection model as well
-;; [x] connection storage
-;; [x] creating finalized connections
-;; [x] updating wormhole state to include finalized connections
-;; [x] pushing connections to other clients
-;; [ ] breaking connections
-;; [ ] pushing broken connections to the client
 
 (defn connect-wormhole [status]
   ;; primarily toggles
@@ -51,6 +36,16 @@
       (= (:wormhole/connection room-from) (:room/id room-to))
       (= (:wormhole/connection room-to) (:room/id room-from))
       (or
+        (= (:wormhole/status room-from) :wormhole.status/connected)
+        (= (:wormhole/status room-to) :wormhole.status/connected)))))
+
+(defn fully-connected? [room-table-map room-ident-from room-ident-to]
+  (let [room-from (get-in room-table-map room-ident-from)
+        room-to   (get-in room-table-map room-ident-to)]
+    (and
+      (= (:wormhole/connection room-from) (:room/id room-to))
+      (= (:wormhole/connection room-to) (:room/id room-from))
+      (and
         (= (:wormhole/status room-from) :wormhole.status/connected)
         (= (:wormhole/status room-to) :wormhole.status/connected)))))
 
@@ -121,6 +116,22 @@
 
   )
 
+(defn break-connection* [room-table-map user-id room-id]
+  (let [connected-room  (get-connected-room room-table-map user-id room-id)
+        disconnect-room #(assoc %
+                           :wormhole/status :wormhole.status/deactive
+                           :wormhole/connection nil)]
+    (cond-> room-table-map
+      :always        (update-in [user-id room-id] disconnect-room)
+      connected-room (update-in [user-id (:room/id connected-room)] disconnect-room))))
+
+(defn break-if-unconnected [user-id room-id]
+  (let [room-table-map    @state/room-table
+        connected-room-id (:room/id (get-connected-room room-table-map user-id room-id))]
+    (when-not (fully-connected? room-table-map [user-id room-id] [user-id connected-room-id])
+      (log/info user-id "breaking connection" room-id)
+      (swap! state/room-table break-connection* user-id room-id))))
+
 (pc/defmutation initialize-connection
   [env
    {:keys [connection/from
@@ -129,16 +140,8 @@
   {::pc/sym `initialize-connection}
   (let [user-id (-> env :user :user/id)]
     (log/info "Initializing connection" from "to" to)
+    (timer-loop/callback-after-ticks-ticks! 6 #(break-if-unconnected user-id from))
     (swap! state/room-table initialize-connection* user-id params)))
-
-(defn break-connection* [room-table-map user-id room-id]
-  (let [connected-room (get-connected-room room-table-map user-id room-id)
-        disconnect-room #(assoc %
-                           :wormhole/status :wormhole.status/deactive
-                           :wormhole/connection nil)]
-    (-> room-table-map
-     (update-in [user-id room-id] disconnect-room)
-     (update-in [user-id (:room/id connected-room)] disconnect-room))))
 
 (comment
   (let [connected-room-map (-> two-way-room-map

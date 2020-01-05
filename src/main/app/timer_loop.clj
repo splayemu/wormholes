@@ -1,17 +1,8 @@
 (ns app.timer-loop
   (:require
    [clojure.core.async :as async :refer [go go-loop <! timeout alts!]]
-   [clojure.data :as data]
    [com.stuartsierra.component :as component]
-   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-   [taoensso.timbre :as log]
-   [app.parser :as parser]
-   [app.server :as server]
-   [app.components :as components]
-   [app.state :as state]
-   [app.mutations :as api]
-   [clojure.walk :as walk])
-  )
+   [taoensso.timbre :as log]))
 
 (defonce timed-callbacks (atom {:ticks []}))
 
