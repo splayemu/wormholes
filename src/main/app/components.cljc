@@ -148,7 +148,6 @@
 
 ;; wormhole.statuss
 #{:wormhole.status/active
-  :wormhole.status/opened
   :wormhole.status/deactive
   :wormhole.status/connected}
 

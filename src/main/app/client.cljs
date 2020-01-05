@@ -1,7 +1,6 @@
 (ns app.client
   (:require
    [app.application :refer [app]]
-   [app.ui :as ui]
    [app.components :as components]
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.components :as comp]
@@ -10,7 +9,7 @@
    [com.fulcrologic.fulcro.algorithms.merge :as fulcro-merge]))
 
 (comment
-  
+
 
   )
 
@@ -34,7 +33,7 @@
 
   (app/mount! app components/Root "app")
   (df/load! app :user nil {:target (targeting/replace-at [:user])})
-  (df/load! app :room-configuration ui/RoomConfiguration {:params {:center-room-id room-id}})
+  (df/load! app :room-configuration components/RoomConfiguration {:params {:center-room-id room-id}})
   (js/console.log "Loaded")
   (comp/transact! app `[(app.mutations/confirm-connection
                           {:connection/room-id ~room-id})]))
@@ -60,8 +59,7 @@
   (comp/transact! app `[(app.mutations/confirm-connection
                           {:connection/room-id ~room-id})]))
 
-(comment 
+(comment
   (asdf (pathname->room-id))
 
   )
-
