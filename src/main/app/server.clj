@@ -72,17 +72,29 @@
 (defn user-id-fn [req]
   (-> req :user :user/id))
 
+(defn safe-keywordize [str]
+  (if (string? str)
+    (-> str
+      (clojure.string/replace #"^:+" "")
+      keyword)
+    str))
+
+(comment
+  (safe-keywordize "::baan")
+
+  )
+
 (defn beacon [req room-id]
   (log/info "beacon")
   (api-parser {:request req}
-    [`(app.mutations/break-connection {:room/id ~(keyword room-id)})])
+    [`(app.mutations/break-connection {:room/id ~(safe-keywordize room-id)})])
   {:status 200
    :headers {"Content-Type" "text/plain"}
    :body "success"})
 
 (defroutes app
   (route/resources "/")
-  (POST "/beacon" [room :as request]
+  (POST "/breakconnection" [room :as request]
     (beacon request room))
   (GET "/*" {{resource-path :*} :route-params}
     (some-> (response/resource-response  "public/index.html")
