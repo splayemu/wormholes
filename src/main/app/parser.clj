@@ -14,7 +14,7 @@
    (fn [resolve]
      (fn static-user-resolver [{:keys [user] :as env} params]
        ;; TODO this is coming as nil and I dont know why
-       (log/info "calling static-client" user)
+       ;;(log/info "calling static-client" user)
        (def tenv env)
        (let [env            (if (static-user? user)
                               (assoc-in env [:user :user/id] :base-state)

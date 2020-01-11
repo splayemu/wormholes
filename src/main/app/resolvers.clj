@@ -14,7 +14,7 @@
                 :wormhole/status
                 :wormhole/connected]}
   (let [user-id (-> env :user :user/id)]
-    (util/log "room-resolver" [user-id id])
+    ;;;;(util/log "room-resolver" [user-id id])
     (get-in @state/room-table [user-id id])))
 
 (comment

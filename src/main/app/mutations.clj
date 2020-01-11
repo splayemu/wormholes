@@ -109,10 +109,13 @@
     (initialize-connection* :user-id {:connection/from :room-one :connection/to :room-two})
     (initialize-connection* :user-id {:connection/from :room-two :connection/to nil}))
 
-
-
-
-  (swap! state/room-table initialize-connection "5dd59ac0-ced9-497e-b67d-2c2d067b9179" {:connection/from :room.id/starting :connection/to :room.id/down})
+  ;; connect on the backend
+  (let [user-id "451d9259-a521-4904-8823-bc55e55b512d"]
+    (swap! state/room-table
+      #(-> %
+         (initialize-connection* user-id {:connection/from :room.id/starting :connection/to :room.id/down})
+         (initialize-connection* user-id {:connection/from :room.id/down :connection/to nil})
+         )))
 
   )
 

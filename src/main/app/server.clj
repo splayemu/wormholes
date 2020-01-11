@@ -20,7 +20,8 @@
    [ring.middleware.content-type :refer [wrap-content-type]]
    [ring.middleware.resource :refer [wrap-resource]]
    [ring.middleware.cookies :refer [wrap-cookies]]
-   [taoensso.timbre :as log]))
+   [taoensso.timbre :as log]
+   [app.parser :as parser]))
 
 (def cookie-name "user_id")
 (def cookie-path [:cookies cookie-name :value])
@@ -69,9 +70,6 @@
 
   )
 
-(defn user-id-fn [req]
-  (-> req :user :user/id))
-
 (defn safe-keywordize [str]
   (if (string? str)
     (-> str
@@ -79,23 +77,28 @@
       keyword)
     str))
 
+(defn client-id->room-id [client-id]
+  (when client-id
+    (-> client-id
+      (clojure.string/split #"\|")
+      first
+      safe-keywordize)))
+
+(defn user-id-fn [req]
+  (def ttreq req)
+  (let [user-id (-> req :user :user/id)
+        room-id (-> req :client-id client-id->room-id)]
+    [user-id room-id]))
+
 (comment
   (safe-keywordize "::baan")
 
-  )
+  (-> ttreq :client-id client-id->room-id)
 
-(defn beacon [req room-id]
-  (log/info "beacon")
-  (api-parser {:request req}
-    [`(app.mutations/break-connection {:room/id ~(safe-keywordize room-id)})])
-  {:status 200
-   :headers {"Content-Type" "text/plain"}
-   :body "success"})
+  )
 
 (defroutes app
   (route/resources "/")
-  (POST "/breakconnection" [room :as request]
-    (beacon request room))
   (GET "/*" {{resource-path :*} :route-params}
     (some-> (response/resource-response  "public/index.html")
       (response/content-type "text/html")))
@@ -103,13 +106,23 @@
 
 (defrecord WebsocketListener []
   WSListener
-  (client-added [this _ws user-id]
-    (log/info "User connected" user-id))
-  (client-dropped [this _ws user-id]
-    (log/info "User disconnected" user-id)))
+  (client-added [this _ws sente-user-id]
+    (log/info "User connected" sente-user-id))
+  (client-dropped [this _ws sente-user-id]
+    (let [[user-id room-id] sente-user-id
+          break-connection [`(app.mutations/break-connection
+                               {:room/id ~(safe-keywordize room-id)})]]
+      (log/info "User disconnected" sente-user-id)
+      (parser/pathom-parser {:user {:user/id user-id}} break-connection))))
 
 (def stop-server-backup (atom nil))
 (def websocket-cheating (atom nil))
+
+(comment
+  (:connected-uids @websocket-cheating)
+
+
+  )
 (defn start-server! [component & [stop-server-atom]]
   (util/log "starting server")
   (let [websockets (fws/start! (fws/make-websockets

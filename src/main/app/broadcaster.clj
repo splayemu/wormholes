@@ -59,7 +59,8 @@
       :else
       (do
         (log/info user-id "Broadcasting to ident:" ident)
-        (push-merge-query websockets user-id query data)))))
+        (doseq [room-id (keys (get @state/room-table user-id))]
+          (push-merge-query websockets [user-id room-id] query data))))))
 
 ;; validate the message
 {:ident [:room/id :room.id/starting]
@@ -172,7 +173,10 @@
                                     (into []))]
           (log/info "change" state-change-idents)
           (doseq [[user-id room-id] state-change-idents]
-            (broadcast! user-id [:room/id room-id])))))
+            (if user-id
+              (broadcast! user-id [:room/id room-id])
+              (log/info "ignoring change broadcast to" {:user-id user-id
+                                                        :room-id room-id}))))))
     (log/info "Starting Changes")
     component)
   (stop [component]
