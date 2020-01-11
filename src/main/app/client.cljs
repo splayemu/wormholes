@@ -8,11 +8,6 @@
    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
    [com.fulcrologic.fulcro.algorithms.merge :as fulcro-merge]))
 
-(comment
-
-
-  )
-
 (defn pathname->room-id
   ([] (pathname->room-id js/window.location.pathname))
   ([pathname]

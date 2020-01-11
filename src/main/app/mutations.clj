@@ -116,14 +116,7 @@
 
   )
 
-(defn break-connection* [room-table-map user-id room-id]
-  (let [connected-room  (get-connected-room room-table-map user-id room-id)
-        disconnect-room #(assoc %
-                           :wormhole/status :wormhole.status/deactive
-                           :wormhole/connection nil)]
-    (cond-> room-table-map
-      :always        (update-in [user-id room-id] disconnect-room)
-      connected-room (update-in [user-id (:room/id connected-room)] disconnect-room))))
+
 
 (defn break-if-unconnected [user-id room-id]
   (let [room-table-map    @state/room-table
@@ -172,14 +165,24 @@
 
   )
 
-(comment
-  ;; update the wormhole status
-  (swap! state/room-table update-in ["a6e5d6b6-7e27-4306-82fd-825c1f8ed687" :room.id/down] assoc :wormhole/status :wormhole.status/active)
+(defn break-connection* [room-table-map user-id room-id]
+  (let [connected-room  (get-connected-room room-table-map user-id room-id)
+        disconnect-room #(assoc %
+                           :wormhole/status :wormhole.status/deactive
+                           :wormhole/connection nil)]
+    (cond-> room-table-map
+      :always        (update-in [user-id room-id] disconnect-room)
+      connected-room (update-in [user-id (:room/id connected-room)] disconnect-room))))
 
-  (get-in @state/room-table ["a6e5d6b6-7e27-4306-82fd-825c1f8ed687" :room.id/down])
+;; TODO switch back to the sendBeacon
+(pc/defmutation break-connection
+  [env
+   {:keys [room/id]
+    :as params}]
+  {::pc/sym `break-connection}
+  (let [user-id (-> env :user :user/id)]
+    (def tenv env)
+    (log/info "break-connection" user-id id)
+    (swap! state/room-table break-connection* user-id id)))
 
-  (swap! state/room-table break-connection* "6ac96571-6009-42af-a3da-4f94b406daca" :room.id/down)
-
-  )
-
-(def mutations [initialize-connection])
+(def mutations [initialize-connection break-connection])

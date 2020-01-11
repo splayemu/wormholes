@@ -49,8 +49,14 @@
         ident-fn (fn [res] [:room/by-id (:room/id res)])
         ident    (ident-fn result)
         data     {ident result}]
-    (if (nil-ident? ident)
+    (cond
+      (nil? user-id)
+      (log/info "Unable to broadcast to nil user with ident:" ident)
+
+      (nil-ident? ident)
       (log/info user-id "Unable to broadcast to nil ident:" ident)
+
+      :else
       (do
         (log/info user-id "Broadcasting to ident:" ident)
         (push-merge-query websockets user-id query data)))))
@@ -72,11 +78,13 @@
 (defonce broadcast-input-ch (atom nil))
 
 (defn broadcast! [user-id ident]
-  (if @broadcast-input-ch
-    (async/put! @broadcast-input-ch
-      {:user-id user-id
-       :ident   ident})
-    :error-broadcaster-down))
+  (if user-id
+    (if @broadcast-input-ch
+     (async/put! @broadcast-input-ch
+       {:user-id user-id
+        :ident   ident})
+     :error-broadcaster-down)
+    (throw (ex-info "Unable to broadcast! to a nil user" {:ident ident}))))
 
 (defrecord Broadcaster [server input-ch]
   component/Lifecycle
