@@ -3,6 +3,7 @@
    [app.util :as util :refer [inspect]]
    [app.parser :refer [api-parser]]
    [app.state :as state]
+   [environ.core :refer [env]]
    [org.httpkit.server :as http]
    [compojure.core :refer :all]
    [compojure.route :as route]
@@ -125,11 +126,12 @@
   )
 (defn start-server! [component & [stop-server-atom]]
   (util/log "starting server")
-  (let [websockets (fws/start! (fws/make-websockets
+  (let [port       (Integer/parseInt (or (env :port) "3000"))
+        websockets (fws/start! (fws/make-websockets
                                  api-parser
                                  {:http-server-adapter (get-sch-adapter)
-                                  :sente-options {:csrf-token-fn nil
-                                                  :user-id-fn user-id-fn}
+                                  :sente-options       {:csrf-token-fn nil
+                                                        :user-id-fn    user-id-fn}
                                   :parser-accepts-env? true}))
         middleware (-> app
                      (fws/wrap-api websockets)
@@ -140,12 +142,12 @@
                      (wrap-resource "public")
                      wrap-content-type
                      wrap-not-modified)
-        server (http/run-server middleware {:port 3000})
-        listener (WebsocketListener.)]
+        server     (http/run-server middleware {:port port})
+        listener   (WebsocketListener.)]
     (add-listener websockets listener)
     (let [stop (fn stop-fn []
-                    (fws/stop! websockets)
-                    (server))]
+                 (fws/stop! websockets)
+                 (server))]
       (when stop-server-atom
         (reset! stop-server-atom stop))
       (when websocket-cheating

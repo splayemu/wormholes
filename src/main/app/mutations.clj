@@ -119,8 +119,16 @@
 
   )
 
+(defn break-connection* [room-table-map user-id room-id]
+  (let [connected-room  (get-connected-room room-table-map user-id room-id)
+        disconnect-room #(assoc %
+                           :wormhole/status :wormhole.status/deactive
+                           :wormhole/connection nil)]
+    (cond-> room-table-map
+      :always        (update-in [user-id room-id] disconnect-room)
+      connected-room (update-in [user-id (:room/id connected-room)] disconnect-room))))
 
-
+;; bug here where things are connected
 (defn break-if-unconnected [user-id room-id]
   (let [room-table-map    @state/room-table
         connected-room-id (:room/id (get-connected-room room-table-map user-id room-id))]
@@ -167,15 +175,6 @@
   (swap! state/room-table confirm-connection* "5dd59ac0-ced9-497e-b67d-2c2d067b9179" :room.id/down)
 
   )
-
-(defn break-connection* [room-table-map user-id room-id]
-  (let [connected-room  (get-connected-room room-table-map user-id room-id)
-        disconnect-room #(assoc %
-                           :wormhole/status :wormhole.status/deactive
-                           :wormhole/connection nil)]
-    (cond-> room-table-map
-      :always        (update-in [user-id room-id] disconnect-room)
-      connected-room (update-in [user-id (:room/id connected-room)] disconnect-room))))
 
 ;; TODO switch back to the sendBeacon
 (pc/defmutation break-connection

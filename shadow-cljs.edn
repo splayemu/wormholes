@@ -6,4 +6,5 @@
                    :modules    {:main {:init-fn app.client/init
                                        :entries [app.client]}}
                    :devtools   {:after-load app.client/refresh
+                                ;; for now let's keep fulcro inspect going to help debug
                                 :preloads   [com.fulcrologic.fulcro.inspect.preload]}}}}

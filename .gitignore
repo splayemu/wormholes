@@ -1,6 +1,8 @@
 .shadow-cljs/
 resources/public/js/
+target/
 node_modules/
 .#*
 .cpcache/
 .nrepl-port
+.lein-repl-history
